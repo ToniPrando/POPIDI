@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { getLoyaltyTier } from '../data/loyaltyRewards';
+import confetti from 'canvas-confetti';
 import { 
   X, 
   Mail, 
@@ -18,7 +19,8 @@ import {
   Crown,
   Gift,
   Star,
-  Award
+  Zap,
+  Smartphone
 } from 'lucide-react';
 
 export const AuthModal: React.FC = () => {
@@ -30,6 +32,7 @@ export const AuthModal: React.FC = () => {
     signInWithGoogle,
     loginWithEmail,
     registerWithEmail,
+    registerWithPhoneOrGuest,
     resetPassword,
     setIsAdminLoginOpen,
     user,
@@ -39,6 +42,7 @@ export const AuthModal: React.FC = () => {
 
   const { setIsLoyaltyOpen } = useCart();
 
+  const [registerMethod, setRegisterMethod] = useState<'phone' | 'email'>('phone');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -69,12 +73,33 @@ export const AuthModal: React.FC = () => {
     setIsAuthModalOpen(false);
   };
 
+  // Format Brazilian phone mask on typing: (XX) XXXXX-XXXX or (XX) XXXX-XXXX
+  const formatPhoneMask = (raw: string): string => {
+    const digits = raw.replace(/\D/g, '').slice(0, 11);
+    if (!digits) return '';
+    if (digits.length <= 2) return `(${digits}`;
+    if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneMask(e.target.value);
+    setPhone(formatted);
+  };
+
   const handleGoogleLogin = async () => {
     setErrorMsg('');
     setSuccessMsg('');
     setIsSubmitting(true);
     try {
       await signInWithGoogle();
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.6 },
+        colors: ['#f59e0b', '#10b981', '#ffffff'],
+      });
       handleClose();
     } catch (err: any) {
       console.error('Google Auth Failed:', err);
@@ -82,19 +107,15 @@ export const AuthModal: React.FC = () => {
       const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
 
       if (code === 'auth/popup-closed-by-user') {
-        setErrorMsg('A janela de login com o Google foi fechada antes da confirmação.');
+        setErrorMsg('A janela do Google foi fechada antes de concluir. Tente novamente ou use o Cadastro com WhatsApp abaixo.');
       } else if (code === 'auth/popup-blocked') {
-        setErrorMsg('O navegador bloqueou a janela pop-up do Google. Por favor, permita pop-ups para este site e clique novamente.');
+        setErrorMsg('Pop-up bloqueado pelo navegador. Você pode se cadastrar rapidamente pelo WhatsApp abaixo sem precisar de pop-up.');
       } else if (code === 'auth/unauthorized-domain') {
-        setErrorMsg(`Domínio não autorizado no Firebase (${currentHost}). Adicione este domínio em: Console Firebase > Authentication > Settings > Authorized domains.`);
-      } else if (code === 'auth/operation-not-allowed') {
-        setErrorMsg('O provedor de login do Google não está ativado no Firebase Console. Ative o Google em Authentication > Sign-in method.');
-      } else if (code === 'auth/cancelled-popup-request') {
-        setErrorMsg('Uma tentativa de login já estava em andamento. Tente clicar novamente.');
+        setErrorMsg(`Domínio (${currentHost}) não cadastrado no Firebase. Cadastre-se pelo WhatsApp ou E-mail abaixo.`);
       } else if (code === 'auth/network-request-failed') {
-        setErrorMsg('Erro de conexão com os servidores de login. Verifique sua internet.');
+        setErrorMsg('Erro de conexão. Verifique sua internet.');
       } else {
-        setErrorMsg(err?.message || 'Não foi possível conectar com o Google no momento. Você também pode entrar ou se cadastrar com e-mail e senha abaixo.');
+        setErrorMsg('Não foi possível conectar com o Google no momento. Cadastre-se em segundos com seu WhatsApp abaixo!');
       }
     } finally {
       setIsSubmitting(false);
@@ -110,69 +131,125 @@ export const AuthModal: React.FC = () => {
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!isValidEmail(email)) {
-      setErrorMsg('Por favor, informe um e-mail válido com "@", domínio e extensão (ex: usuario@dominio.com).');
-      return;
-    }
-
+    // 1. Password Reset Flow
     if (isForgotPass) {
+      if (!isValidEmail(email)) {
+        setErrorMsg('Informe um e-mail válido para redefinição.');
+        return;
+      }
       setIsSubmitting(true);
       try {
         await resetPassword(email.trim());
         setSuccessMsg('Link de redefinição de senha enviado para seu e-mail!');
         setIsSubmitting(false);
       } catch (err: any) {
-        setErrorMsg('Não encontramos uma conta com este e-mail.');
+        setErrorMsg('Não encontramos uma conta vinculada a este e-mail.');
         setIsSubmitting(false);
       }
       return;
     }
 
+    // 2. Login Flow
     if (authModalTab === 'login') {
-      if (!password) {
-        setErrorMsg('Preencha sua senha.');
+      const loginIdentifier = email.trim();
+      if (!loginIdentifier) {
+        setErrorMsg('Informe seu e-mail ou WhatsApp cadastrado.');
         return;
       }
+      
       setIsSubmitting(true);
       try {
-        await loginWithEmail(email.trim(), password);
+        await loginWithEmail(loginIdentifier, password);
+        confetti({
+          particleCount: 40,
+          spread: 50,
+          origin: { y: 0.6 },
+          colors: ['#10b981', '#3b82f6', '#f59e0b'],
+        });
         handleClose();
       } catch (err: any) {
         if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-          setErrorMsg('E-mail ou senha incorretos.');
+          setErrorMsg('E-mail, telefone ou senha não conferem. Caso ainda não tenha cadastro, clique na aba "Criar Nova Conta".');
         } else if (err.code === 'auth/too-many-requests') {
-          setErrorMsg('Muitas tentativas. Aguarde alguns instantes.');
+          setErrorMsg('Muitas tentativas consecutivas. Aguarde alguns instantes.');
         } else {
-          setErrorMsg('Erro ao realizar login. Verifique seus dados.');
+          setErrorMsg(err.message || 'Erro ao realizar login. Verifique seus dados.');
         }
       } finally {
         setIsSubmitting(false);
       }
-    } else {
-      // Register
+      return;
+    }
+
+    // 3. Register Flow
+    if (authModalTab === 'register') {
       if (!name.trim()) {
-        setErrorMsg('Informe seu nome completo.');
+        setErrorMsg('Por favor, informe seu nome completo.');
         return;
       }
-      if (phone && phone.length < 10) {
-        setErrorMsg('O telefone deve conter apenas números com DDD (ex: 15997075641).');
+
+      // Method A: Fast WhatsApp / Phone Registration (No complex password needed!)
+      if (registerMethod === 'phone') {
+        const cleanDigits = phone.replace(/\D/g, '');
+        if (cleanDigits.length < 10) {
+          setErrorMsg('Informe seu WhatsApp com DDD (mínimo 10 números, ex: (15) 99707-5641).');
+          return;
+        }
+
+        setIsSubmitting(true);
+        try {
+          await registerWithPhoneOrGuest(name.trim(), cleanDigits, email.trim());
+          confetti({
+            particleCount: 60,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#00ff66', '#f59e0b', '#ffffff'],
+          });
+          handleClose();
+        } catch (err: any) {
+          setErrorMsg(err?.message || 'Erro ao cadastrar cliente. Tente novamente.');
+        } finally {
+          setIsSubmitting(false);
+        }
         return;
       }
+
+      // Method B: Email & Password Registration
+      if (!isValidEmail(email)) {
+        setErrorMsg('Informe um endereço de e-mail válido (ex: joao@email.com).');
+        return;
+      }
+
       if (password.length < 6) {
         setErrorMsg('A senha deve conter no mínimo 6 caracteres.');
         return;
       }
+
+      const cleanDigits = phone.replace(/\D/g, '');
+      if (cleanDigits && cleanDigits.length < 10) {
+        setErrorMsg('O telefone WhatsApp deve conter DDD (ex: 15997075641).');
+        return;
+      }
+
       setIsSubmitting(true);
       try {
-        await registerWithEmail(name.trim(), email.trim(), password, phone.trim());
+        await registerWithEmail(name.trim(), email.trim(), password, cleanDigits);
+        confetti({
+          particleCount: 60,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#00ff66', '#f59e0b', '#ffffff'],
+        });
         handleClose();
       } catch (err: any) {
         if (err.code === 'auth/email-already-in-use') {
-          setErrorMsg('Este e-mail já está cadastrado. Faça login ou recupere a senha.');
+          setErrorMsg('Este e-mail já está cadastrado. Clique na aba "Já sou Cliente (Login)" ou recupere sua senha.');
         } else if (err.code === 'auth/weak-password') {
-          setErrorMsg('Senha muito fraca. Utilize letras e números.');
+          setErrorMsg('A senha escolhida é fraca. Utilize ao menos 6 dígitos com letras e números.');
+        } else if (err.code === 'auth/invalid-email') {
+          setErrorMsg('Formato de e-mail inválido.');
         } else {
-          setErrorMsg('Erro ao criar conta. Tente novamente.');
+          setErrorMsg(err.message || 'Erro ao criar conta. Tente novamente.');
         }
       } finally {
         setIsSubmitting(false);
@@ -181,21 +258,21 @@ export const AuthModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md bg-[#0d0e14] border border-fuchsia-500/40 rounded-3xl shadow-[0_0_40px_rgba(240,70,245,0.25)] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md bg-[#0d0e14] border border-fuchsia-500/40 rounded-3xl shadow-[0_0_40px_rgba(240,70,245,0.25)] overflow-hidden max-h-[92vh] flex flex-col">
         
         {/* Top Header */}
-        <div className="flex items-center justify-between p-5 border-b border-zinc-800/80 bg-zinc-950/70">
+        <div className="flex items-center justify-between p-5 border-b border-zinc-800/80 bg-zinc-950/80 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-fuchsia-600 to-emerald-500 flex items-center justify-center text-white font-black shadow-lg">
               P
             </div>
             <div>
               <h3 className="font-black text-white text-base">
-                {user ? 'Minha Conta' : isForgotPass ? 'Recuperar Senha' : authModalTab === 'login' ? 'Entrar na PO-PI-DI' : 'Criar Conta de Cliente'}
+                {user || profile ? 'Minha Conta de Cliente' : isForgotPass ? 'Recuperar Senha' : authModalTab === 'login' ? 'Entrar na PO-PI-DI' : 'Criar Cadastro de Cliente'}
               </h3>
               <p className="text-[11px] text-zinc-400">
-                {user ? 'Seus dados e pedidos salvos' : 'Acesse seu histórico e agilize seus pedidos'}
+                {user || profile ? 'Seus dados, pontos e pedidos salvos' : 'Ganhe 50 pontos de boas-vindas no Clube Fidelidade!'}
               </p>
             </div>
           </div>
@@ -208,24 +285,24 @@ export const AuthModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="p-6 space-y-5">
+        {/* Scrollable Content Body */}
+        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto">
           {/* If already logged in */}
-          {user ? (
+          {user || profile ? (
             <div className="space-y-4 text-center py-1">
               <div className="w-16 h-16 rounded-full bg-zinc-800 border-2 border-emerald-400 mx-auto overflow-hidden flex items-center justify-center shadow-[0_0_15px_rgba(0,255,102,0.3)]">
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt={user.displayName || 'Avatar'} className="w-full h-full object-cover" />
+                {user?.photoURL || profile?.photoURL ? (
+                  <img src={user?.photoURL || profile?.photoURL} alt={profile?.name || user?.displayName || 'Avatar'} className="w-full h-full object-cover" />
                 ) : (
                   <User className="w-8 h-8 text-emerald-400" />
                 )}
               </div>
 
               <div>
-                <h4 className="text-lg font-black text-white">{profile?.name || user.displayName || 'Cliente PO-PI-DI'}</h4>
-                <p className="text-xs text-zinc-400">{user.email}</p>
+                <h4 className="text-lg font-black text-white">{profile?.name || user?.displayName || 'Cliente PO-PI-DI'}</h4>
+                <p className="text-xs text-zinc-400">{profile?.email || user?.email || 'Cadastro via WhatsApp'}</p>
                 {profile?.phone && (
-                  <p className="text-xs text-zinc-500 mt-0.5">WhatsApp: {profile.phone}</p>
+                  <p className="text-xs text-emerald-400 font-bold mt-0.5">📱 WhatsApp: {formatPhoneMask(profile.phone)}</p>
                 )}
               </div>
 
@@ -237,8 +314,8 @@ export const AuthModal: React.FC = () => {
                       <Crown className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="text-xs font-black text-white block leading-none">Clube Fidelidade</span>
-                      <span className="text-[10px] text-zinc-400">Pontos da sua conta</span>
+                      <span className="text-xs font-black text-white block leading-none">Clube Fidelidade PO-PI-DI</span>
+                      <span className="text-[10px] text-zinc-400">Saldo da sua conta</span>
                     </div>
                   </div>
 
@@ -263,7 +340,7 @@ export const AuthModal: React.FC = () => {
                       handleClose();
                       setIsLoyaltyOpen(true);
                     }}
-                    className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-black text-xs rounded-xl shadow-md transition-all hover:scale-102 flex items-center gap-1.5"
+                    className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black font-black text-xs rounded-xl shadow-md transition-all hover:scale-102 flex items-center gap-1.5 cursor-pointer"
                   >
                     <Gift className="w-3.5 h-3.5" />
                     <span>Resgatar</span>
@@ -278,30 +355,96 @@ export const AuthModal: React.FC = () => {
               <div className="p-3 bg-zinc-900/80 rounded-2xl border border-zinc-800 text-left space-y-1">
                 <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Conta conectada & sincronizada</span>
+                  <span>Conta sincronizada em tempo real</span>
                 </div>
                 <p className="text-[11px] text-zinc-400">
-                  Seus pedidos e endereços ficam salvos automaticamente.
+                  Seus pedidos e endereços ficam salvos automaticamente na nuvem.
                 </p>
               </div>
 
               <div className="flex gap-2 pt-1">
                 <button
+                  type="button"
                   onClick={logout}
-                  className="flex-1 py-3 bg-zinc-900 hover:bg-zinc-800 text-red-400 hover:text-red-300 font-bold text-xs rounded-xl border border-zinc-800 transition-colors"
+                  className="flex-1 py-3 bg-zinc-900 hover:bg-zinc-800 text-red-400 hover:text-red-300 font-bold text-xs rounded-xl border border-zinc-800 transition-colors cursor-pointer"
                 >
                   Sair da Conta
                 </button>
                 <button
+                  type="button"
                   onClick={handleClose}
-                  className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-green-500 text-black font-black text-xs rounded-xl shadow-lg transition-transform hover:scale-[1.02]"
+                  className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-black font-black text-xs rounded-xl shadow-lg transition-transform hover:scale-[1.02] cursor-pointer"
                 >
-                  Continuar no Cardápio
+                  Fazer Pedido
                 </button>
               </div>
             </div>
           ) : (
             <>
+              {/* Tab Selector (Login vs Cadastro) */}
+              {!isForgotPass && (
+                <div className="flex bg-zinc-950 p-1 rounded-2xl border border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthModalTab('login');
+                      setErrorMsg('');
+                    }}
+                    className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                      authModalTab === 'login'
+                        ? 'bg-zinc-800 text-white shadow'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    Já sou Cliente (Login)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthModalTab('register');
+                      setErrorMsg('');
+                    }}
+                    className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                      authModalTab === 'register'
+                        ? 'bg-emerald-500 text-black shadow'
+                        : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    Criar Nova Conta ✨
+                  </button>
+                </div>
+              )}
+
+              {/* Sub-selector for Register: Fast WhatsApp vs Email */}
+              {authModalTab === 'register' && !isForgotPass && (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRegisterMethod('phone')}
+                    className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      registerMethod === 'phone'
+                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Rápido pelo WhatsApp</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegisterMethod('email')}
+                    className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      registerMethod === 'email'
+                        ? 'bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-300'
+                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Mail className="w-3.5 h-3.5 text-fuchsia-400" />
+                    <span>Com E-mail e Senha</span>
+                  </button>
+                </div>
+              )}
+
               {/* Google Fast Sign-In Button */}
               {!isForgotPass && (
                 <div>
@@ -309,12 +452,12 @@ export const AuthModal: React.FC = () => {
                     type="button"
                     onClick={handleGoogleLogin}
                     disabled={isSubmitting}
-                    className="w-full flex items-center justify-center gap-3 bg-white hover:bg-zinc-100 disabled:bg-zinc-200 text-zinc-900 font-bold text-sm py-3.5 px-4 rounded-2xl shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99] border border-zinc-200 cursor-pointer disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center gap-3 bg-white hover:bg-zinc-100 disabled:bg-zinc-200 text-zinc-900 font-bold text-xs py-3 px-4 rounded-2xl shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99] border border-zinc-200 cursor-pointer disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
-                      <div className="w-5 h-5 border-2 border-zinc-800 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-zinc-800 border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <svg className="w-5 h-5" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
                         <path
                           fill="#4285F4"
                           d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -336,70 +479,37 @@ export const AuthModal: React.FC = () => {
                     <span>{isSubmitting ? 'Conectando ao Google...' : 'Continuar com o Google'}</span>
                   </button>
 
-                  <div className="relative my-4">
+                  <div className="relative my-3">
                     <div className="absolute inset-0 flex items-center">
                       <div className="w-full border-t border-zinc-800" />
                     </div>
-                    <div className="relative flex justify-center text-[11px] uppercase">
+                    <div className="relative flex justify-center text-[10px] uppercase">
                       <span className="bg-[#0d0e14] px-3 text-zinc-500 font-bold">
-                        ou com e-mail e senha
+                        ou preencha seus dados
                       </span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Tab Selector (Login vs Cadastro) */}
-              {!isForgotPass && (
-                <div className="flex bg-zinc-950 p-1 rounded-2xl border border-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthModalTab('login');
-                      setErrorMsg('');
-                    }}
-                    className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${
-                      authModalTab === 'login'
-                        ? 'bg-zinc-800 text-white shadow'
-                        : 'text-zinc-400 hover:text-zinc-200'
-                    }`}
-                  >
-                    Já sou Cliente (Login)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthModalTab('register');
-                      setErrorMsg('');
-                    }}
-                    className={`flex-1 py-2 text-xs font-black rounded-xl transition-all ${
-                      authModalTab === 'register'
-                        ? 'bg-emerald-500 text-black shadow'
-                        : 'text-zinc-400 hover:text-zinc-200'
-                    }`}
-                  >
-                    Criar Nova Conta
-                  </button>
-                </div>
-              )}
-
               {/* Alerts */}
               {errorMsg && (
-                <div className="p-3 bg-red-950/50 border border-red-800/60 rounded-xl flex items-center gap-2.5 text-xs text-red-300">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-                  <span>{errorMsg}</span>
+                <div className="p-3 bg-red-950/60 border border-red-800/80 rounded-xl flex items-start gap-2.5 text-xs text-red-300 animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+                  <span className="leading-tight">{errorMsg}</span>
                 </div>
               )}
 
               {successMsg && (
-                <div className="p-3 bg-emerald-950/50 border border-emerald-800/60 rounded-xl flex items-center gap-2.5 text-xs text-emerald-300">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                  <span>{successMsg}</span>
+                <div className="p-3 bg-emerald-950/60 border border-emerald-800/80 rounded-xl flex items-start gap-2.5 text-xs text-emerald-300 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+                  <span className="leading-tight">{successMsg}</span>
                 </div>
               )}
 
-              {/* Email Form */}
-              <form onSubmit={handleSubmit} className="space-y-3.5">
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-3">
+                {/* 1. If Register Tab */}
                 {authModalTab === 'register' && !isForgotPass && (
                   <>
                     <div>
@@ -411,50 +521,94 @@ export const AuthModal: React.FC = () => {
                           required
                           value={name}
                           onChange={e => setName(e.target.value)}
-                          placeholder="Ex: João da Silva"
+                          placeholder="Ex: Carlos Eduardo"
                           className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-xs font-bold text-zinc-300 block mb-1">WhatsApp / Telefone (Apenas Números com DDD) *</label>
+                      <label className="text-xs font-bold text-zinc-300 block mb-1">
+                        WhatsApp / Celular com DDD *
+                      </label>
                       <div className="relative">
-                        <Phone className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
+                        <Phone className="w-4 h-4 text-emerald-400 absolute left-3.5 top-3.5" />
                         <input
                           type="tel"
-                          inputMode="numeric"
+                          required
                           value={phone}
-                          onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
-                          placeholder="Ex: 15997075641"
-                          maxLength={13}
-                          className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-mono"
+                          onChange={handlePhoneChange}
+                          placeholder="(15) 99707-5641"
+                          className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-mono font-bold"
                         />
                       </div>
+                      <p className="text-[10px] text-zinc-500 mt-1">Usado para receber atualizações do seu pedido via WhatsApp.</p>
                     </div>
+
+                    {registerMethod === 'email' && (
+                      <>
+                        <div>
+                          <label className="text-xs font-bold text-zinc-300 block mb-1">E-mail *</label>
+                          <div className="relative">
+                            <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
+                            <input
+                              type="email"
+                              required
+                              value={email}
+                              onChange={e => setEmail(e.target.value)}
+                              placeholder="seuemail@exemplo.com"
+                              className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-zinc-300 block mb-1">Crie uma Senha (mín. 6 dígitos) *</label>
+                          <div className="relative">
+                            <Lock className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              required
+                              value={password}
+                              onChange={e => setPassword(e.target.value)}
+                              placeholder="Digite sua senha"
+                              className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3.5 top-3 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                            >
+                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
 
-                <div>
-                  <label className="text-xs font-bold text-zinc-300 block mb-1">E-mail *</label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="seuemail@exemplo.com"
-                      className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
+                {/* 2. If Login Tab */}
+                {authModalTab === 'login' && !isForgotPass && (
+                  <>
+                    <div>
+                      <label className="text-xs font-bold text-zinc-300 block mb-1">E-mail ou WhatsApp *</label>
+                      <div className="relative">
+                        <User className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
+                        <input
+                          type="text"
+                          required
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          placeholder="seuemail@exemplo.com ou (15) 99707-5641"
+                          className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
 
-                {!isForgotPass && (
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-zinc-300">Senha *</label>
-                      {authModalTab === 'login' && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-bold text-zinc-300">Senha</label>
                         <button
                           type="button"
                           onClick={() => {
@@ -462,40 +616,61 @@ export const AuthModal: React.FC = () => {
                             setErrorMsg('');
                             setSuccessMsg('');
                           }}
-                          className="text-[11px] text-fuchsia-400 hover:underline"
+                          className="text-[11px] text-fuchsia-400 hover:underline cursor-pointer"
                         >
                           Esqueceu a senha?
                         </button>
-                      )}
+                      </div>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                          placeholder="Sua senha de acesso"
+                          className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3.5 top-3 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
+                  </>
+                )}
+
+                {/* 3. If Forgot Password Tab */}
+                {isForgotPass && (
+                  <div>
+                    <label className="text-xs font-bold text-zinc-300 block mb-1">E-mail Cadastrado *</label>
                     <div className="relative">
-                      <Lock className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
+                      <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
                       <input
-                        type={showPassword ? 'text' : 'password'}
+                        type="email"
                         required
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        placeholder="Mínimo 6 dígitos"
-                        className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder="seuemail@exemplo.com"
+                        className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-3 text-zinc-500 hover:text-zinc-300"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
                     </div>
                   </div>
                 )}
 
+                {/* Submit Action Button */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full mt-2 py-3.5 bg-gradient-to-r from-emerald-500 via-emerald-400 to-green-500 hover:from-emerald-400 hover:to-green-400 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full mt-2 py-3.5 bg-gradient-to-r from-emerald-500 via-emerald-400 to-green-500 hover:from-emerald-400 hover:to-green-400 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-500/25 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isSubmitting ? (
-                    <span>Processando...</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                      <span>Cadastrando...</span>
+                    </div>
                   ) : isForgotPass ? (
                     <span>Enviar Link de Recuperação</span>
                   ) : authModalTab === 'login' ? (
@@ -505,7 +680,7 @@ export const AuthModal: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <span>Finalizar Cadastro</span>
+                      <span>{registerMethod === 'phone' ? 'Criar Conta com WhatsApp' : 'Finalizar Cadastro'}</span>
                       <Sparkles className="w-4 h-4" />
                     </>
                   )}
@@ -518,7 +693,7 @@ export const AuthModal: React.FC = () => {
                       setIsForgotPass(false);
                       setErrorMsg('');
                     }}
-                    className="w-full text-center text-xs text-zinc-400 hover:text-white pt-1 block"
+                    className="w-full text-center text-xs text-zinc-400 hover:text-white pt-1 block cursor-pointer"
                   >
                     ← Voltar para o Login
                   </button>
@@ -526,17 +701,17 @@ export const AuthModal: React.FC = () => {
               </form>
 
               {/* Special Admin Access Shortcut */}
-              <div className="pt-3 border-t border-zinc-800/80 text-center">
+              <div className="pt-2 border-t border-zinc-800/80 text-center">
                 <button
                   type="button"
                   onClick={() => {
                     handleClose();
                     setIsAdminLoginOpen(true);
                   }}
-                  className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-yellow-400 transition-colors font-semibold"
+                  className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-yellow-400 transition-colors font-semibold cursor-pointer"
                 >
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Acesso Especial do Administrador / Cozinha ↗</span>
+                  <span>Acesso Especial da Cozinha / Administrador ↗</span>
                 </button>
               </div>
             </>
@@ -546,3 +721,4 @@ export const AuthModal: React.FC = () => {
     </div>
   );
 };
+

@@ -13,7 +13,7 @@ import {
   Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Order, OrderStatus, StoreSettings } from '../types';
+import { Order, OrderStatus, StoreSettings, UserProfile } from '../types';
 
 /**
  * Sanitizes an object by recursively removing all `undefined` fields.
@@ -245,6 +245,67 @@ export function subscribeToStoreSettings(onUpdate: (settings: StoreSettings) => 
 }
 
 /**
+ * Saves or updates a user profile in Firestore.
+ */
+export async function saveUserProfileToFirestore(profile: UserProfile): Promise<void> {
+  const sanitized = sanitizeForFirestore({
+    ...profile,
+    updatedAt: new Date().toISOString(),
+    serverUpdatedAt: serverTimestamp(),
+  });
+  const userRef = doc(db, 'users', profile.uid);
+  await setDoc(userRef, sanitized, { merge: true });
+}
+
+/**
+ * Retrieves a user profile from Firestore by UID.
+ */
+export async function getUserProfileFromFirestore(uid: string): Promise<UserProfile | null> {
+  try {
+    const userRef = doc(db, 'users', uid);
+    const snap = await getDoc(userRef);
+    if (snap.exists()) {
+      return { ...(snap.data() as UserProfile), uid: snap.id };
+    }
+  } catch (e) {
+    console.warn(`Could not get user profile ${uid} from Firestore:`, e);
+  }
+  return null;
+}
+
+/**
+ * Searches for an existing user profile by phone number or email.
+ */
+export async function findUserProfileByPhoneOrEmail(identifier: string): Promise<UserProfile | null> {
+  const clean = identifier.trim().toLowerCase();
+  const digitsOnly = clean.replace(/\D/g, '');
+
+  // 1. Search by email
+  if (clean.includes('@')) {
+    try {
+      const emailQuery = query(collection(db, 'users'), where('email', '==', clean), limit(1));
+      const snap = await getDocs(emailQuery);
+      if (!snap.empty) {
+        return { ...(snap.docs[0].data() as UserProfile), uid: snap.docs[0].id };
+      }
+    } catch (e) {}
+  }
+
+  // 2. Search by phone
+  if (digitsOnly.length >= 8) {
+    try {
+      const phoneQuery = query(collection(db, 'users'), where('phone', '==', digitsOnly), limit(1));
+      const snap = await getDocs(phoneQuery);
+      if (!snap.empty) {
+        return { ...(snap.docs[0].data() as UserProfile), uid: snap.docs[0].id };
+      }
+    } catch (e) {}
+  }
+
+  return null;
+}
+
+/**
  * Adds loyalty points to a user's account in Firestore.
  */
 export async function creditUserLoyaltyPoints(userId: string, points: number): Promise<void> {
@@ -274,4 +335,5 @@ export async function saveStoreSettingsToFirestore(settings: Partial<StoreSettin
   });
   await setDoc(docRef, payload, { merge: true });
 }
+
 
