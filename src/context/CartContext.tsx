@@ -15,22 +15,17 @@ import {
 import { useAuth } from './AuthContext';
 import { initialMenuItems } from '../data/menuData';
 import { initialStoreSettings, availableCoupons } from '../data/restaurantInfo';
-import { 
-  db, 
-  auth,
-  collection, 
-  doc, 
-  getDoc,
-  getDocs,
-  where,
-  limit,
-  setDoc, 
-  updateDoc, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  serverTimestamp 
-} from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
+import {
+  saveOrderToFirestore,
+  subscribeToOrders,
+  subscribeToOrder,
+  updateOrderStatusInFirestore,
+  findOrderInFirestore,
+  subscribeToStoreSettings,
+  saveStoreSettingsToFirestore,
+  creditUserLoyaltyPoints,
+} from '../services/firebaseService';
 
 interface CartContextType {
   cart: CartItem[];
@@ -293,83 +288,43 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [menuItems]);
 
-  // Firestore Real-Time Listener for Orders
+  // Firestore Real-Time Listener for Orders across all devices
   useEffect(() => {
-    try {
-      const ordersCol = collection(db, 'orders');
-
-      const unsubscribe = onSnapshot(ordersCol, (snapshot) => {
-        if (!snapshot.empty) {
-          const firestoreOrders: Order[] = [];
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            firestoreOrders.push({
-              id: docSnap.id,
-              ...data,
-            } as Order);
-          });
-
-          // Sort in-memory safely by date descending
-          firestoreOrders.sort((a, b) => {
-            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return timeB - timeA;
-          });
-
-          // Check if a new order arrived while app is open to trigger kitchen chime
-          if (!initialMountRef.current && firestoreOrders.length > 0) {
-            const latest = firestoreOrders[0];
-            const isRecent = (Date.now() - new Date(latest.createdAt).getTime()) < 30000;
-            if (latest.status === 'received' && isRecent) {
-              playKitchenChime();
-            }
-          }
-          initialMountRef.current = false;
-
-          setOrders(firestoreOrders);
-
-          // Update active order if it is in the list
-          if (activeOrder) {
-            const updatedActive = firestoreOrders.find(o => o.id === activeOrder.id);
-            if (updatedActive) {
-              setActiveOrder(updatedActive);
-            }
-          }
+    const unsubscribe = subscribeToOrders((firestoreOrders) => {
+      // Check if a new order arrived while app is open to trigger kitchen chime
+      if (!initialMountRef.current && firestoreOrders.length > 0) {
+        const latest = firestoreOrders[0];
+        const isRecent = (Date.now() - new Date(latest.createdAt).getTime()) < 30000;
+        if (latest.status === 'received' && isRecent) {
+          playKitchenChime();
         }
-      }, (err) => {
-        console.warn('Firestore orders live listener fallback to local:', err);
-      });
+      }
+      initialMountRef.current = false;
 
-      return () => unsubscribe();
-    } catch (err) {
-      console.warn('Could not connect Firestore orders listener:', err);
-    }
+      setOrders(firestoreOrders);
+
+      // Update active order if it is in the list
+      if (activeOrder) {
+        const updatedActive = firestoreOrders.find(o => o.id === activeOrder.id);
+        if (updatedActive) {
+          setActiveOrder(updatedActive);
+        }
+      }
+    });
+
+    return () => unsubscribe();
   }, [activeOrder?.id]);
 
   // Dedicated real-time listener for the active tracked order (ensures instant status updates across any device)
   useEffect(() => {
     if (!activeOrder?.id) return;
-    try {
-      const unsub = onSnapshot(doc(db, 'orders', activeOrder.id), (snap) => {
-        if (snap.exists()) {
-          const remoteData = snap.data() as Partial<Order>;
-          setActiveOrder(prev => {
-            if (!prev || prev.id !== activeOrder.id) return prev;
-            return {
-              ...prev,
-              ...remoteData,
-              id: snap.id,
-            } as Order;
-          });
-        }
-      }, (err) => {
-        console.warn('Live active order listener error:', err);
-      });
+    const unsub = subscribeToOrder(activeOrder.id, (remoteOrder) => {
+      if (remoteOrder) {
+        setActiveOrder(remoteOrder);
+      }
+    });
 
-      return () => unsub();
-    } catch (e) {
-      console.warn('Active order tracking listener error:', e);
-    }
+    return () => unsub();
   }, [activeOrder?.id]);
 
   // Check URL parameters for direct cross-device order tracking (?pedido=... or ?rastrear=...)
@@ -389,13 +344,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (foundLocally) {
               setActiveOrder(foundLocally);
             } else {
-              try {
-                const snap = await getDoc(doc(db, 'orders', savedActiveId));
-                if (snap.exists()) {
-                  setActiveOrder({ id: snap.id, ...snap.data() } as Order);
-                }
-              } catch (e) {
-                // ignore
+              const remote = await findOrderInFirestore(savedActiveId);
+              if (remote) {
+                setActiveOrder(remote);
               }
             }
           }
@@ -410,21 +361,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Firestore Real-time listener for store settings
   useEffect(() => {
-    try {
-      const settingDocRef = doc(db, 'store_settings', 'main');
-      const unsub = onSnapshot(settingDocRef, (snap) => {
-        if (snap.exists()) {
-          const remoteSettings = snap.data() as Partial<StoreSettings>;
-          setStoreSettings(prev => ({ ...prev, ...remoteSettings }));
-        }
-      }, (err) => {
-        console.warn('Settings listener fallback:', err);
-      });
+    const unsub = subscribeToStoreSettings((remoteSettings) => {
+      if (remoteSettings) {
+        setStoreSettings(prev => ({ ...prev, ...remoteSettings }));
+      }
+    });
 
-      return () => unsub();
-    } catch (e) {
-      // Graceful fallback
-    }
+    return () => unsub();
   }, []);
 
   // When authenticated user changes or orders update, auto-select ongoing order if not already tracking
@@ -453,7 +396,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanCode = raw.toUpperCase();
     const cleanNumbers = raw.replace(/\D/g, '');
 
-    // 1. Search in local in-memory orders list
+    // 1. Search in local in-memory orders list first
     const foundInMemory = orders.find(o => {
       const matchesId = o.id.toLowerCase() === raw.toLowerCase();
       const matchesShort = o.shortCode.toUpperCase() === cleanCode || 
@@ -478,67 +421,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: true, message: `Pedido ${foundInMemory.shortCode} localizado!`, order: foundInMemory };
     }
 
-    // 2. Query Firestore directly by ID, ShortCode, Phone or Email
+    // 2. Query Firestore directly
     try {
-      // 2a. Direct Document ID Lookup
-      if (raw.startsWith('ord_') || raw.length >= 15) {
-        const docSnap = await getDoc(doc(db, 'orders', raw));
-        if (docSnap.exists()) {
-          const ord = { id: docSnap.id, ...docSnap.data() } as Order;
-          setActiveOrder(ord);
-          setOrders(prev => [ord, ...prev.filter(o => o.id !== ord.id)]);
-          setIsOrderTrackerOpen(true);
-          try { localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, ord.id); } catch (e) {}
-          return { success: true, message: `Pedido ${ord.shortCode} localizado!`, order: ord };
-        }
-      }
-
-      // 2b. Query by shortCode with # or without #
-      const formattedCode = cleanCode.startsWith('#') ? cleanCode : `#${cleanCode}`;
-      const codeQuery = query(collection(db, 'orders'), where('shortCode', '==', formattedCode), limit(1));
-      const codeSnap = await getDocs(codeQuery);
-      if (!codeSnap.empty) {
-        const firstDoc = codeSnap.docs[0];
-        const ord = { id: firstDoc.id, ...firstDoc.data() } as Order;
-        setActiveOrder(ord);
-        setOrders(prev => [ord, ...prev.filter(o => o.id !== ord.id)]);
+      const remote = await findOrderInFirestore(raw);
+      if (remote) {
+        setActiveOrder(remote);
+        setOrders(prev => [remote, ...prev.filter(o => o.id !== remote.id)]);
         setIsOrderTrackerOpen(true);
-        try { localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, ord.id); } catch (e) {}
-        return { success: true, message: `Pedido ${ord.shortCode} localizado!`, order: ord };
-      }
-
-      // 2c. Query by customerPhone
-      if (cleanNumbers.length >= 8) {
-        const phoneQuery = query(collection(db, 'orders'), where('customerPhone', '==', cleanNumbers), limit(5));
-        const phoneSnap = await getDocs(phoneQuery);
-        if (!phoneSnap.empty) {
-          const ord = { id: phoneSnap.docs[0].id, ...phoneSnap.docs[0].data() } as Order;
-          setActiveOrder(ord);
-          const foundList = phoneSnap.docs.map(d => ({ id: d.id, ...d.data() } as Order));
-          setOrders(prev => [...foundList, ...prev.filter(o => !foundList.some(f => f.id === o.id))]);
-          setIsOrderTrackerOpen(true);
-          try { localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, ord.id); } catch (e) {}
-          return { success: true, message: `Pedido encontrado para seu telefone!`, order: ord };
-        }
-      }
-
-      // 2d. Fallback: Scan recent orders
-      const recentQuery = query(collection(db, 'orders'), limit(30));
-      const recentSnap = await getDocs(recentQuery);
-      for (const d of recentSnap.docs) {
-        const data = d.data() as Order;
-        const ord = { id: d.id, ...data };
-        if (
-          ord.shortCode?.toUpperCase().includes(cleanCode.replace('#', '')) ||
-          (cleanNumbers.length >= 8 && ord.customerPhone?.replace(/\D/g, '').includes(cleanNumbers)) ||
-          (cleanNumbers.length >= 8 && ord.customer?.phone?.replace(/\D/g, '').includes(cleanNumbers))
-        ) {
-          setActiveOrder(ord);
-          setOrders(prev => [ord, ...prev.filter(o => o.id !== ord.id)]);
-          setIsOrderTrackerOpen(true);
-          try { localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, ord.id); } catch (e) {}
-          return { success: true, message: `Pedido ${ord.shortCode} localizado!`, order: ord };
-        }
+        try { localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, remote.id); } catch (e) {}
+        return { success: true, message: `Pedido ${remote.shortCode} localizado!`, order: remote };
       }
 
       return { success: false, message: `Nenhum pedido encontrado para "${raw}". Verifique o código e tente novamente.` };
@@ -730,38 +621,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       estimatedDeliveryTime,
     };
 
-    // Save to Firestore Database
+    // Save to Firestore Database in real-time across all devices
     try {
-      const orderDocRef = doc(db, 'orders', orderId);
-      await setDoc(orderDocRef, {
-        ...newOrder,
-        serverCreatedAt: serverTimestamp(),
-      });
+      await saveOrderToFirestore(newOrder);
 
-      // If user logged in, also record in customer's order history collection and credit loyalty points
+      // If user logged in, also update loyalty points
       if (currentUserId) {
-        const userOrderRef = doc(db, 'users', currentUserId, 'orders', orderId);
-        await setDoc(userOrderRef, {
-          ...newOrder,
-          serverCreatedAt: serverTimestamp(),
-        });
-
-        // 1 real = 1 ponto de fidelidade
         const pointsEarned = Math.floor(newOrder.total);
-        const userDocRef = doc(db, 'users', currentUserId);
-        const userSnap = await getDoc(userDocRef);
-        if (userSnap.exists()) {
-          const currentPts = userSnap.data().loyaltyPoints || 50;
-          await updateDoc(userDocRef, {
-            loyaltyPoints: currentPts + pointsEarned,
-          });
-        }
+        await creditUserLoyaltyPoints(currentUserId, pointsEarned);
       }
     } catch (err) {
       console.warn('Could not save order directly to Firestore, saving locally:', err);
     }
 
-    setOrders(prev => [newOrder, ...prev]);
+    setOrders(prev => [newOrder, ...prev.filter(o => o.id !== newOrder.id)]);
     setActiveOrder(newOrder);
     try {
       localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, newOrder.id);
@@ -775,7 +648,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const timestamp = new Date().toISOString();
     const note = getStatusDescription(status);
 
-    // Update locally first
+    // Update locally first for instant snappy response
     setOrders(prev =>
       prev.map(ord => {
         if (ord.id === orderId) {
@@ -803,18 +676,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Sync status change to Firestore
     try {
-      const orderDocRef = doc(db, 'orders', orderId);
-      const existing = orders.find(o => o.id === orderId);
-      const newHistory = existing ? [
-        ...existing.statusHistory,
-        { status, timestamp, note }
-      ] : [{ status, timestamp, note }];
-
-      await updateDoc(orderDocRef, {
-        status,
-        statusHistory: newHistory,
-        updatedAt: serverTimestamp(),
-      });
+      await updateOrderStatusInFirestore(orderId, status, note);
     } catch (e) {
       console.warn('Error syncing order status update to Firestore:', e);
     }
@@ -831,12 +693,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateStoreSettings = async (newSettings: Partial<StoreSettings>) => {
     setStoreSettings(prev => ({ ...prev, ...newSettings }));
     try {
-      const settingDocRef = doc(db, 'store_settings', 'main');
-      await setDoc(settingDocRef, {
-        ...storeSettings,
-        ...newSettings,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
+      await saveStoreSettingsToFirestore(newSettings);
     } catch (err) {
       console.warn('Error saving store settings to Firestore:', err);
     }

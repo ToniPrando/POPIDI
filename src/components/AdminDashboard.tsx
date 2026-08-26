@@ -190,6 +190,7 @@ export const AdminDashboard: React.FC = () => {
   const [customPinInput, setCustomPinInput] = useState(storeSettings.adminPin || '1234');
   const [customPassInput, setCustomPassInput] = useState(storeSettings.adminPassword || 'popidi@2026');
   const [pinSavedFeedback, setPinSavedFeedback] = useState(false);
+  const [newOrderAlert, setNewOrderAlert] = useState<Order | null>(null);
 
   const previousOrdersCountRef = useRef(orders.length);
 
@@ -201,15 +202,19 @@ export const AdminDashboard: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Sound chime when new order arrives
+  // Sound chime & visual notification banner when new order arrives from cloud
   useEffect(() => {
-    if (orders.length > previousOrdersCountRef.current) {
-      if (soundEnabled) {
-        playKitchenChime();
+    if (orders.length > previousOrdersCountRef.current && previousOrdersCountRef.current > 0) {
+      const latestOrder = orders[0];
+      if (latestOrder && latestOrder.status === 'received') {
+        setNewOrderAlert(latestOrder);
+        if (soundEnabled) {
+          playKitchenChime();
+        }
       }
     }
     previousOrdersCountRef.current = orders.length;
-  }, [orders.length, soundEnabled]);
+  }, [orders, soundEnabled]);
 
   if (!isAdminOpen) return null;
 
@@ -650,6 +655,56 @@ export const AdminDashboard: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Real-Time New Incoming Order Alert Banner */}
+        {newOrderAlert && (
+          <div className="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black px-4 py-3 border-b-2 border-yellow-300 flex items-center justify-between shadow-xl animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-black text-yellow-400 rounded-xl">
+                <BellRing className="w-5 h-5 animate-bounce" />
+              </div>
+              <div>
+                <div className="font-black text-sm uppercase tracking-wide flex items-center gap-2">
+                  <span>🔔 NOVO PEDIDO CHEGOU NA COZINHA!</span>
+                  <span className="bg-black text-yellow-400 px-2 py-0.5 rounded-lg text-xs font-mono font-black">{newOrderAlert.shortCode}</span>
+                </div>
+                <div className="text-xs font-bold text-black/85 mt-0.5">
+                  Cliente: <strong>{newOrderAlert.customer.name}</strong> ({newOrderAlert.customer.phone}) • Total: <strong>{formatBRL(newOrderAlert.total)}</strong> • {newOrderAlert.orderType === 'delivery' ? '🛵 Entrega' : '🛍️ Retirada'}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  updateOrderStatus(newOrderAlert.id, 'preparing');
+                  setNewOrderAlert(null);
+                }}
+                className="px-3.5 py-2 bg-black hover:bg-zinc-900 text-yellow-400 rounded-xl font-black text-xs uppercase tracking-wider transition-transform active:scale-95 cursor-pointer shadow flex items-center gap-1.5"
+              >
+                <Flame className="w-3.5 h-3.5" />
+                <span>Mandar p/ Chapa</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => printKitchenReceipt(newOrderAlert)}
+                className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                title="Imprimir comanda"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Imprimir</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewOrderAlert(null)}
+                className="p-2 hover:bg-black/15 text-black rounded-lg transition-colors cursor-pointer"
+                title="Dispensar aviso"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Top KPI Metrics Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-5 bg-zinc-900/60 border-b border-zinc-800 p-3 sm:p-4 gap-2.5 text-xs shrink-0">
