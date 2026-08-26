@@ -13,7 +13,6 @@ import {
   AlertCircle, 
   Sparkles, 
   ArrowRight,
-  ShieldCheck,
   Eye,
   EyeOff,
   Crown,
@@ -34,7 +33,6 @@ export const AuthModal: React.FC = () => {
     registerWithEmail,
     registerWithPhoneOrGuest,
     resetPassword,
-    setIsAdminLoginOpen,
     user,
     profile,
     logout
@@ -699,21 +697,6 @@ export const AuthModal: React.FC = () => {
                   </button>
                 )}
               </form>
-
-              {/* Special Admin Access Shortcut */}
-              <div className="pt-2 border-t border-zinc-800/80 text-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleClose();
-                    setIsAdminLoginOpen(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-yellow-400 transition-colors font-semibold cursor-pointer"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Acesso Especial da Cozinha / Administrador ↗</span>
-                </button>
-              </div>
             </>
           )}
         </div>

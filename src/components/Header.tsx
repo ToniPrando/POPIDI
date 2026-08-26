@@ -23,8 +23,7 @@ import {
   Gift,
   Star,
   Award,
-  ShieldCheck,
-  Lock
+  ShieldCheck
 } from 'lucide-react';
 
 export const Header: React.FC = () => {
@@ -47,7 +46,6 @@ export const Header: React.FC = () => {
     isAdmin,
     setIsAuthModalOpen,
     setAuthModalTab,
-    setIsAdminLoginOpen,
     logout
   } = useAuth();
 
@@ -276,22 +274,6 @@ export const Header: React.FC = () => {
                       <span>Dados da Conta & Fidelidade</span>
                     </button>
 
-                    {/* Admin Access inside User Dropdown */}
-                    <button
-                      onClick={() => {
-                        setUserDropdownOpen(false);
-                        if (isAdmin) {
-                          setIsAdminOpen(true);
-                        } else {
-                          setIsAdminLoginOpen(true);
-                        }
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 rounded-xl transition-colors text-left font-bold"
-                    >
-                      <ShieldCheck className="w-4 h-4 text-yellow-400" />
-                      <span>{isAdmin ? "Painel KDS / Gerente" : "Acesso ADM (Requer Senha)"}</span>
-                    </button>
-
                     <button
                       onClick={() => {
                         setUserDropdownOpen(false);
@@ -478,33 +460,31 @@ export const Header: React.FC = () => {
             </span>
           </button>
 
-          {/* Admin KDS Access in Mobile */}
-          <button
-            onClick={() => {
-              setMobileMenuOpen(false);
-              if (isAdmin) {
+          {/* Admin KDS Quick Access in Mobile (if Admin authenticated) */}
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
                 setIsAdminOpen(true);
-              } else {
-                setIsAdminLoginOpen(true);
-              }
-            }}
-            className="w-full flex items-center justify-between p-3 bg-zinc-900 border border-yellow-500/30 rounded-2xl text-xs font-bold text-yellow-400 hover:bg-zinc-850 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-black border border-yellow-500/30">
-                {isAdmin ? <ShieldCheck className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-              </div>
-              <div className="text-left">
-                <div className="text-white font-black text-xs">Painel do Gerente / Cozinha (KDS)</div>
-                <div className="text-[10px] text-zinc-400">
-                  {isAdmin ? 'Autenticado • Toque para abrir' : 'Requer Senha ou PIN Master'}
+              }}
+              className="w-full flex items-center justify-between p-3 bg-zinc-900 border border-yellow-500/30 rounded-2xl text-xs font-bold text-yellow-400 hover:bg-zinc-850 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-black border border-yellow-500/30">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <div className="text-white font-black text-xs">Painel do Gerente / Cozinha (KDS)</div>
+                  <div className="text-[10px] text-zinc-400">
+                    Autenticado • Toque para abrir
+                  </div>
                 </div>
               </div>
-            </div>
-            <span className="text-[10px] font-black bg-zinc-800 text-yellow-400 px-2.5 py-1 rounded-lg border border-zinc-700">
-              {isAdmin ? 'Abrir' : 'Acessar'}
-            </span>
-          </button>
+              <span className="text-[10px] font-black bg-zinc-800 text-yellow-400 px-2.5 py-1 rounded-lg border border-zinc-700">
+                Abrir
+              </span>
+            </button>
+          )}
         </div>
       )}
     </header>
