@@ -194,16 +194,17 @@ export const Header: React.FC = () => {
               </button>
             )}
 
-            {/* Active Order Tracker Pill - only when logged in */}
-            {user && activeOrder && activeOrder.status !== 'completed' && activeOrder.status !== 'cancelled' && (
+            {/* Active Order Tracker Pill */}
+            {activeOrder && activeOrder.status !== 'completed' && activeOrder.status !== 'cancelled' && (
               <button
                 id="btn-active-order-tracker"
                 onClick={() => setIsOrderTrackerOpen(true)}
-                className="hidden md:flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-[0_0_12px_rgba(0,255,102,0.2)] animate-pulse"
+                className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-[0_0_12px_rgba(0,255,102,0.2)] animate-pulse cursor-pointer"
                 title="Acompanhar pedido em tempo real"
               >
                 <Bike className="w-4 h-4" />
-                <span>Pedido {activeOrder.shortCode}</span>
+                <span className="hidden sm:inline">Acompanhar</span>
+                <span>{activeOrder.shortCode}</span>
               </button>
             )}
 
@@ -427,21 +428,31 @@ export const Header: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-2">
-                <p className="text-xs text-zinc-400">Entre com Google para salvar seus pedidos e endereços:</p>
+                <p className="text-xs text-zinc-400">Entre com Google para sincronizar seus pedidos:</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={handleOpenLogin}
-                    className="py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs rounded-xl text-center"
+                    className="py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs rounded-xl text-center cursor-pointer"
                   >
                     Entrar / Login
                   </button>
                   <button
                     onClick={handleOpenRegister}
-                    className="py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs rounded-xl text-center"
+                    className="py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs rounded-xl text-center cursor-pointer"
                   >
                     Criar Conta
                   </button>
                 </div>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setIsOrderHistoryOpen(true);
+                  }}
+                  className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 text-xs font-bold rounded-xl text-center flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <History className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Rastrear Pedido por Código ou Telefone</span>
+                </button>
               </div>
             )}
           </div>

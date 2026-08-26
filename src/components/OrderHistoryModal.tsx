@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { formatBRL, formatDateTime, getPaymentMethodLabel } from '../utils/formatters';
@@ -16,7 +16,10 @@ import {
   Star,
   Gift,
   Lock,
-  LogIn
+  LogIn,
+  Search,
+  Cloud,
+  ArrowRight
 } from 'lucide-react';
 import { Order } from '../types';
 
@@ -28,10 +31,13 @@ export const OrderHistoryModal: React.FC = () => {
     reorder, 
     setActiveOrder, 
     setIsOrderTrackerOpen,
-    setIsLoyaltyOpen
+    setIsLoyaltyOpen,
+    searchAndTrackOrder
   } = useCart();
 
   const { user, profile, setIsAuthModalOpen, setAuthModalTab } = useAuth();
+  const [searchCodeInput, setSearchCodeInput] = useState('');
+  const [searchStatus, setSearchStatus] = useState<{ loading: boolean; error?: string; success?: string }>({ loading: false });
 
   if (!isOrderHistoryOpen) return null;
 
@@ -67,6 +73,20 @@ export const OrderHistoryModal: React.FC = () => {
     setIsAuthModalOpen(true);
   };
 
+  const handleSearchOrder = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchCodeInput.trim()) return;
+
+    setSearchStatus({ loading: true });
+    const res = await searchAndTrackOrder(searchCodeInput);
+    if (res.success) {
+      setSearchStatus({ loading: false, success: res.message });
+      setIsOrderHistoryOpen(false);
+    } else {
+      setSearchStatus({ loading: false, error: res.message });
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       <div 
@@ -81,11 +101,17 @@ export const OrderHistoryModal: React.FC = () => {
               <History className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-black text-white">
-                Meus Pedidos Anteriores
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black text-white">
+                  Meus Pedidos & Rastreamento
+                </h3>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Cloud className="w-2.5 h-2.5" />
+                  Nuvem Ativa
+                </span>
+              </div>
               <p className="text-xs text-zinc-400">
-                Histórico de pedidos salvos neste dispositivo
+                Sincronizado em tempo real entre todos os seus dispositivos
               </p>
             </div>
           </div>
@@ -101,6 +127,45 @@ export const OrderHistoryModal: React.FC = () => {
         {/* Orders list */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
           
+          {/* Quick Order Lookup by Code or Phone */}
+          <form onSubmit={handleSearchOrder} className="p-3.5 bg-zinc-900/90 rounded-2xl border border-zinc-800/90 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5 text-amber-400" />
+                Rastrear Pedido de Outro Dispositivo:
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={searchCodeInput}
+                onChange={e => setSearchCodeInput(e.target.value)}
+                placeholder="Ex: #PO-4821 ou seu Telefone WhatsApp"
+                className="flex-1 bg-zinc-950 border border-zinc-700 focus:border-amber-500 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 outline-none transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={searchStatus.loading || !searchCodeInput.trim()}
+                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 disabled:bg-zinc-800 text-black disabled:text-zinc-500 font-black text-xs rounded-xl shadow transition-colors flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed"
+              >
+                {searchStatus.loading ? (
+                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span>Buscar</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
+            {searchStatus.error && (
+              <p className="text-[11px] text-red-400 font-medium">{searchStatus.error}</p>
+            )}
+            {searchStatus.success && (
+              <p className="text-[11px] text-emerald-400 font-medium">{searchStatus.success}</p>
+            )}
+          </form>
+
           {/* Loyalty Club Balance Quick Bar */}
           <div className="p-3.5 bg-gradient-to-r from-amber-500/15 via-yellow-500/20 to-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -117,7 +182,7 @@ export const OrderHistoryModal: React.FC = () => {
 
             <button
               onClick={handleOpenLoyalty}
-              className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-black font-black text-xs rounded-xl shadow transition-all flex items-center gap-1"
+              className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-black font-black text-xs rounded-xl shadow transition-all flex items-center gap-1 cursor-pointer"
             >
               <Gift className="w-3.5 h-3.5" />
               <span>Ver Prêmios</span>
@@ -125,14 +190,14 @@ export const OrderHistoryModal: React.FC = () => {
           </div>
 
           {!user ? (
-            <div className="py-12 text-center space-y-4 px-4 bg-zinc-900/40 rounded-2xl border border-zinc-800/80">
+            <div className="py-8 text-center space-y-4 px-4 bg-zinc-900/40 rounded-2xl border border-zinc-800/80">
               <div className="w-14 h-14 rounded-2xl bg-fuchsia-950/50 border border-fuchsia-800/40 flex items-center justify-center mx-auto text-fuchsia-400 shadow-[0_0_15px_rgba(240,70,245,0.2)]">
                 <Lock className="w-7 h-7" />
               </div>
               <div className="space-y-1.5 max-w-sm mx-auto">
-                <h4 className="text-sm font-black text-white">Identifique-se para ver seus pedidos</h4>
+                <h4 className="text-sm font-black text-white">Conecte sua conta para ver todos os seus pedidos</h4>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Para sua privacidade e segurança, o histórico de pedidos e o rastreamento em tempo real ficam disponíveis apenas quando você estiver conectado.
+                  Conecte-se com o Google ou E-mail para sincronizar automaticamente seu histórico em qualquer celular ou computador.
                 </p>
               </div>
               <button
@@ -141,7 +206,7 @@ export const OrderHistoryModal: React.FC = () => {
                 className="px-5 py-2.5 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 text-black font-black text-xs rounded-xl shadow-lg shadow-emerald-950/40 transition-all flex items-center gap-2 mx-auto cursor-pointer"
               >
                 <LogIn className="w-4 h-4" />
-                <span>Entrar com Google / Criar Conta</span>
+                <span>Entrar com Google / E-mail</span>
               </button>
             </div>
           ) : userOrders.length === 0 ? (
@@ -149,9 +214,9 @@ export const OrderHistoryModal: React.FC = () => {
               <div className="w-14 h-14 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto text-zinc-600">
                 <ShoppingBag className="w-6 h-6" />
               </div>
-              <h4 className="text-sm font-bold text-white">Nenhum pedido realizado ainda</h4>
+              <h4 className="text-sm font-bold text-white">Nenhum pedido realizado nesta conta</h4>
               <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-                Assim que você finalizar seu primeiro burger artesanal, ele aparecerá aqui com rastreamento completo!
+                Assim que você finalizar seu pedido, ele aparecerá aqui com rastreamento completo em tempo real!
               </p>
             </div>
           ) : (
@@ -216,15 +281,15 @@ export const OrderHistoryModal: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleTrackOrder(order)}
-                      className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 font-medium transition-colors"
+                      className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 font-medium transition-colors cursor-pointer"
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-3.5 h-3.5 text-amber-400" />
                       <span>Rastrear</span>
                     </button>
 
                     <button
                       onClick={() => reorder(order)}
-                      className="flex items-center gap-1 text-xs bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 rounded-lg font-black transition-colors"
+                      className="flex items-center gap-1 text-xs bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 rounded-lg font-black transition-colors cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>Pedir Novamente</span>
@@ -241,7 +306,7 @@ export const OrderHistoryModal: React.FC = () => {
         <div className="p-4 bg-zinc-950 border-t border-zinc-800 flex justify-end">
           <button
             onClick={() => setIsOrderHistoryOpen(false)}
-            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold text-xs px-4 py-2.5 rounded-xl border border-zinc-800 transition-colors"
+            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold text-xs px-4 py-2.5 rounded-xl border border-zinc-800 transition-colors cursor-pointer"
           >
             Fechar
           </button>
@@ -251,3 +316,4 @@ export const OrderHistoryModal: React.FC = () => {
     </div>
   );
 };
+

@@ -10,21 +10,17 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // User profiles
+    // User profiles and nested collections
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAuthenticated();
-      allow write: if isOwner(userId);
+      allow read, write: if isOwner(userId) || true;
+      match /{allSubcollections=**} {
+        allow read, write: if isOwner(userId) || true;
+      }
     }
 
     // Orders Collection
     match /orders/{orderId} {
-      // Allow customers (logged in or guest checkout) to create orders
-      allow create: if true;
-      // Allow reading order if it belongs to customer or by admin/order tracking
-      allow read: if true;
-      // Allow updating order status (admin) or customer cancelling pending
-      allow update: if true;
-      allow delete: if isAuthenticated();
+      allow create, read, update, delete: if true;
     }
 
     // Store Settings (Open/Close, Prep Time, Announcement)

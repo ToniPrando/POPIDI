@@ -21,6 +21,9 @@ import {
   collection, 
   doc, 
   getDoc,
+  getDocs,
+  where,
+  limit,
   setDoc, 
   updateDoc, 
   onSnapshot, 
@@ -64,6 +67,7 @@ interface CartContextType {
   orders: Order[];
   activeOrder: Order | null;
   setActiveOrder: (order: Order | null) => void;
+  searchAndTrackOrder: (searchTerm: string) => Promise<{ success: boolean; message: string; order?: Order }>;
   placeOrder: () => Promise<Order>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   reorder: (order: Order) => void;
@@ -98,6 +102,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_CART_KEY = 'popidi_cart_v4';
 const LOCAL_STORAGE_ORDERS_KEY = 'popidi_orders_v4';
+const LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY = 'popidi_active_order_id_v4';
 const LOCAL_STORAGE_CUSTOMER_KEY = 'popidi_customer_v4';
 const LOCAL_STORAGE_ADDRESS_KEY = 'popidi_address_v4';
 const LOCAL_STORAGE_SETTINGS_KEY = 'popidi_settings_v4';
@@ -292,9 +297,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     try {
       const ordersCol = collection(db, 'orders');
-      const q = query(ordersCol, orderBy('createdAt', 'desc'));
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const unsubscribe = onSnapshot(ordersCol, (snapshot) => {
         if (!snapshot.empty) {
           const firestoreOrders: Order[] = [];
           snapshot.forEach((docSnap) => {
@@ -303,6 +307,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               id: docSnap.id,
               ...data,
             } as Order);
+          });
+
+          // Sort in-memory safely by date descending
+          firestoreOrders.sort((a, b) => {
+            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return timeB - timeA;
           });
 
           // Check if a new order arrived while app is open to trigger kitchen chime
@@ -317,7 +328,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           setOrders(firestoreOrders);
 
-          // Update active order if needed
+          // Update active order if it is in the list
           if (activeOrder) {
             const updatedActive = firestoreOrders.find(o => o.id === activeOrder.id);
             if (updatedActive) {
@@ -333,7 +344,69 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.warn('Could not connect Firestore orders listener:', err);
     }
-  }, [activeOrder]);
+  }, [activeOrder?.id]);
+
+  // Dedicated real-time listener for the active tracked order (ensures instant status updates across any device)
+  useEffect(() => {
+    if (!activeOrder?.id) return;
+    try {
+      const unsub = onSnapshot(doc(db, 'orders', activeOrder.id), (snap) => {
+        if (snap.exists()) {
+          const remoteData = snap.data() as Partial<Order>;
+          setActiveOrder(prev => {
+            if (!prev || prev.id !== activeOrder.id) return prev;
+            return {
+              ...prev,
+              ...remoteData,
+              id: snap.id,
+            } as Order;
+          });
+        }
+      }, (err) => {
+        console.warn('Live active order listener error:', err);
+      });
+
+      return () => unsub();
+    } catch (e) {
+      console.warn('Active order tracking listener error:', e);
+    }
+  }, [activeOrder?.id]);
+
+  // Check URL parameters for direct cross-device order tracking (?pedido=... or ?rastrear=...)
+  useEffect(() => {
+    const handleUrlTracking = async () => {
+      try {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        const codeParam = params.get('pedido') || params.get('rastrear') || params.get('order') || params.get('orderId');
+        if (codeParam) {
+          await searchAndTrackOrder(codeParam);
+        } else {
+          // Check saved active order from local storage
+          const savedActiveId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY);
+          if (savedActiveId && !activeOrder) {
+            const foundLocally = orders.find(o => o.id === savedActiveId || o.shortCode === savedActiveId);
+            if (foundLocally) {
+              setActiveOrder(foundLocally);
+            } else {
+              try {
+                const snap = await getDoc(doc(db, 'orders', savedActiveId));
+                if (snap.exists()) {
+                  setActiveOrder({ id: snap.id, ...snap.data() } as Order);
+                }
+              } catch (e) {
+                // ignore
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error reading tracking URL:', err);
+      }
+    };
+
+    handleUrlTracking();
+  }, []);
 
   // Firestore Real-time listener for store settings
   useEffect(() => {
@@ -354,16 +427,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Set latest active order if none selected - strictly for the authenticated user
+  // When authenticated user changes or orders update, auto-select ongoing order if not already tracking
   useEffect(() => {
-    if (!user) {
-      if (activeOrder) {
-        setActiveOrder(null);
-      }
-      return;
-    }
-
-    if (!activeOrder && orders.length > 0) {
+    if (user && !activeOrder && orders.length > 0) {
       const userOrders = orders.filter(o => {
         const email = o.userEmail || o.customerEmail || o.customer?.email;
         const matchesEmail = Boolean(user.email && email && email.toLowerCase() === user.email.toLowerCase());
@@ -376,6 +442,111 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
   }, [orders, activeOrder, user]);
+
+  // Method to search and track an order across devices by short code, ID, phone, or email
+  const searchAndTrackOrder = async (searchTerm: string): Promise<{ success: boolean; message: string; order?: Order }> => {
+    const raw = searchTerm.trim();
+    if (!raw) {
+      return { success: false, message: 'Digite um código de pedido ou número de telefone.' };
+    }
+
+    const cleanCode = raw.toUpperCase();
+    const cleanNumbers = raw.replace(/\D/g, '');
+
+    // 1. Search in local in-memory orders list
+    const foundInMemory = orders.find(o => {
+      const matchesId = o.id.toLowerCase() === raw.toLowerCase();
+      const matchesShort = o.shortCode.toUpperCase() === cleanCode || 
+                           o.shortCode.replace('#', '').toUpperCase() === cleanCode.replace('#', '');
+      const matchesPhone = cleanNumbers.length >= 8 && Boolean(
+        (o.customerPhone && o.customerPhone.replace(/\D/g, '').includes(cleanNumbers)) ||
+        (o.customer?.phone && o.customer.phone.replace(/\D/g, '').includes(cleanNumbers))
+      );
+      const matchesEmail = raw.includes('@') && Boolean(
+        (o.userEmail && o.userEmail.toLowerCase() === raw.toLowerCase()) ||
+        (o.customerEmail && o.customerEmail.toLowerCase() === raw.toLowerCase())
+      );
+      return matchesId || matchesShort || matchesPhone || matchesEmail;
+    });
+
+    if (foundInMemory) {
+      setActiveOrder(foundInMemory);
+      setIsOrderTrackerOpen(true);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, foundInMemory.id);
+      } catch (e) {}
+      return { success: true, message: `Pedido ${foundInMemory.shortCode} localizado!`, order: foundInMemory };
+    }
+
+    // 2. Query Firestore directly by ID, ShortCode, Phone or Email
+    try {
+      // 2a. Direct Document ID Lookup
+      if (raw.startsWith('ord_') || raw.length >= 15) {
+        const docSnap = await getDoc(doc(db, 'orders', raw));
+        if (docSnap.exists()) {
+          const ord = { id: docSnap.id, ...docSnap.data() } as Order;
+          setActiveOrder(ord);
+          setOrders(prev => [ord, ...prev.filter(o => o.id !== ord.id)]);
+          setIsOrderTrackerOpen(true);
+          try { localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, ord.id); } catch (e) {}
+          return { success: true, message: `Pedido ${ord.shortCode} localizado!`, order: ord };
+        }
+      }
+
+      // 2b. Query by shortCode with # or without #
+      const formattedCode = cleanCode.startsWith('#') ? cleanCode : `#${cleanCode}`;
+      const codeQuery = query(collection(db, 'orders'), where('shortCode', '==', formattedCode), limit(1));
+      const codeSnap = await getDocs(codeQuery);
+      if (!codeSnap.empty) {
+        const firstDoc = codeSnap.docs[0];
+        const ord = { id: firstDoc.id, ...firstDoc.data() } as Order;
+        setActiveOrder(ord);
+        setOrders(prev => [ord, ...prev.filter(o => o.id !== ord.id)]);
+        setIsOrderTrackerOpen(true);
+        try { localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, ord.id); } catch (e) {}
+        return { success: true, message: `Pedido ${ord.shortCode} localizado!`, order: ord };
+      }
+
+      // 2c. Query by customerPhone
+      if (cleanNumbers.length >= 8) {
+        const phoneQuery = query(collection(db, 'orders'), where('customerPhone', '==', cleanNumbers), limit(5));
+        const phoneSnap = await getDocs(phoneQuery);
+        if (!phoneSnap.empty) {
+          const ord = { id: phoneSnap.docs[0].id, ...phoneSnap.docs[0].data() } as Order;
+          setActiveOrder(ord);
+          const foundList = phoneSnap.docs.map(d => ({ id: d.id, ...d.data() } as Order));
+          setOrders(prev => [...foundList, ...prev.filter(o => !foundList.some(f => f.id === o.id))]);
+          setIsOrderTrackerOpen(true);
+          try { localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, ord.id); } catch (e) {}
+          return { success: true, message: `Pedido encontrado para seu telefone!`, order: ord };
+        }
+      }
+
+      // 2d. Fallback: Scan recent orders
+      const recentQuery = query(collection(db, 'orders'), limit(30));
+      const recentSnap = await getDocs(recentQuery);
+      for (const d of recentSnap.docs) {
+        const data = d.data() as Order;
+        const ord = { id: d.id, ...data };
+        if (
+          ord.shortCode?.toUpperCase().includes(cleanCode.replace('#', '')) ||
+          (cleanNumbers.length >= 8 && ord.customerPhone?.replace(/\D/g, '').includes(cleanNumbers)) ||
+          (cleanNumbers.length >= 8 && ord.customer?.phone?.replace(/\D/g, '').includes(cleanNumbers))
+        ) {
+          setActiveOrder(ord);
+          setOrders(prev => [ord, ...prev.filter(o => o.id !== ord.id)]);
+          setIsOrderTrackerOpen(true);
+          try { localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, ord.id); } catch (e) {}
+          return { success: true, message: `Pedido ${ord.shortCode} localizado!`, order: ord };
+        }
+      }
+
+      return { success: false, message: `Nenhum pedido encontrado para "${raw}". Verifique o código e tente novamente.` };
+    } catch (err: any) {
+      console.error('Error querying Firestore for order:', err);
+      return { success: false, message: 'Erro ao buscar pedido nos servidores. Tente novamente.' };
+    }
+  };
 
   const addToCart = (
     item: MenuItem,
@@ -592,6 +763,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setOrders(prev => [newOrder, ...prev]);
     setActiveOrder(newOrder);
+    try {
+      localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, newOrder.id);
+    } catch (e) {}
     clearCart();
 
     return newOrder;
@@ -705,6 +879,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         orders,
         activeOrder,
         setActiveOrder,
+        searchAndTrackOrder,
         placeOrder,
         updateOrderStatus,
         reorder,

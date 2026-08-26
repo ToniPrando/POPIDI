@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { formatBRL, formatDateTime, getPaymentMethodLabel } from '../utils/formatters';
@@ -12,9 +12,12 @@ import {
   Store, 
   MessageSquare, 
   Copy, 
+  Check,
   Share2, 
   ArrowLeft,
-  AlertCircle
+  AlertCircle,
+  Smartphone,
+  Cloud
 } from 'lucide-react';
 import { OrderStatus } from '../types';
 
@@ -27,8 +30,9 @@ export const OrderTrackerModal: React.FC = () => {
     updateOrderStatus 
   } = useCart();
   const { user } = useAuth();
+  const [copiedLink, setCopiedLink] = useState(false);
 
-  if (!isOrderTrackerOpen || !activeOrder || !user) return null;
+  if (!isOrderTrackerOpen || !activeOrder) return null;
 
   const steps: { status: OrderStatus; title: string; subtitle: string; icon: any }[] = [
     {
@@ -71,6 +75,47 @@ export const OrderTrackerModal: React.FC = () => {
 
   const currentStepIdx = getStepIndex(activeOrder.status);
 
+  const getTrackingUrl = () => {
+    if (typeof window === 'undefined') return '';
+    const cleanCode = activeOrder.shortCode.replace('#', '');
+    return `${window.location.origin}${window.location.pathname}?pedido=${cleanCode}`;
+  };
+
+  const handleCopyLink = async () => {
+    const url = getTrackingUrl();
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const input = document.createElement('input');
+        input.value = url;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch (e) {
+      console.warn('Clipboard copy error:', e);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = getTrackingUrl();
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Rastreamento do Pedido ${activeOrder.shortCode} - Pó Pi Di`,
+          text: `Acompanhe o status em tempo real do meu pedido na Hamburgueria Pó Pi Di:`,
+          url: url,
+        });
+      } catch (e) {}
+    } else {
+      handleCopyLink();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       <div 
@@ -93,9 +138,15 @@ export const OrderTrackerModal: React.FC = () => {
                   {formatDateTime(activeOrder.createdAt)}
                 </span>
               </div>
-              <h3 className="text-base font-black text-white">
-                Acompanhamento do Pedido
-              </h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <h3 className="text-base font-black text-white">
+                  Acompanhamento do Pedido
+                </h3>
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/70 border border-emerald-800/80 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  Ao Vivo
+                </span>
+              </div>
             </div>
           </div>
 
@@ -108,7 +159,7 @@ export const OrderTrackerModal: React.FC = () => {
         </div>
 
         {/* Content */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
           
           {/* Estimated Time Card */}
           <div className="p-4 bg-zinc-900/90 rounded-xl border border-zinc-800 flex items-center justify-between">
@@ -126,6 +177,36 @@ export const OrderTrackerModal: React.FC = () => {
               <span className="text-xs font-bold text-white uppercase bg-zinc-800 px-2.5 py-1 rounded-md">
                 {activeOrder.orderType === 'delivery' ? '🛵 Delivery' : '🛍️ Retirada'}
               </span>
+            </div>
+          </div>
+
+          {/* Cross-Device Share / Sync Box */}
+          <div className="p-3 bg-zinc-900/60 rounded-xl border border-zinc-800/80 flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 text-zinc-300">
+              <Smartphone className="w-4 h-4 text-amber-400 shrink-0" />
+              <div>
+                <span className="font-bold text-white block">Acompanhar em outro celular</span>
+                <span className="text-[11px] text-zinc-400">Compartilhe ou abra o link deste pedido</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleCopyLink}
+                className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                title="Copiar link do pedido"
+              >
+                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedLink ? 'Copiado!' : 'Copiar Link'}</span>
+              </button>
+
+              <button
+                onClick={handleShare}
+                className="p-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg transition-colors cursor-pointer"
+                title="Compartilhar"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
@@ -166,33 +247,6 @@ export const OrderTrackerModal: React.FC = () => {
             })}
           </div>
 
-          {/* Quick Simulation tool for demo purposes */}
-          <div className="p-3 bg-zinc-900/40 rounded-xl border border-zinc-800/60 text-xs text-zinc-400 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                Simular Atualização de Status:
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {(['received', 'preparing', 'out_for_delivery', 'completed'] as OrderStatus[]).map(st => (
-                <button
-                  key={st}
-                  onClick={() => updateOrderStatus(activeOrder.id, st)}
-                  className={`text-[11px] px-2.5 py-1 rounded font-bold transition-colors ${
-                    activeOrder.status === st
-                      ? 'bg-amber-500 text-black'
-                      : 'bg-zinc-800 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {st === 'received' && 'Recebido'}
-                  {st === 'preparing' && 'Na Chapa'}
-                  {st === 'out_for_delivery' && 'Saiu p/ Entrega'}
-                  {st === 'completed' && 'Entregue'}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Order Items Receipt Box */}
           <div className="p-4 bg-zinc-900/70 rounded-xl border border-zinc-800 space-y-3 text-xs">
             <div className="font-bold text-white border-b border-zinc-800 pb-2 flex items-center justify-between">
@@ -231,7 +285,7 @@ export const OrderTrackerModal: React.FC = () => {
         <div className="p-4 bg-zinc-950 border-t border-zinc-800 flex items-center gap-3">
           <button
             onClick={() => openWhatsAppOrder(activeOrder, storeSettings)}
-            className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm py-3 rounded-xl shadow transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm py-3 rounded-xl shadow transition-colors cursor-pointer"
           >
             <MessageSquare className="w-4 h-4" />
             <span>Falar no WhatsApp da Hamburgueria</span>
@@ -239,7 +293,7 @@ export const OrderTrackerModal: React.FC = () => {
 
           <button
             onClick={() => setIsOrderTrackerOpen(false)}
-            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold text-xs sm:text-sm px-4 py-3 rounded-xl border border-zinc-800 transition-colors"
+            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold text-xs sm:text-sm px-4 py-3 rounded-xl border border-zinc-800 transition-colors cursor-pointer"
           >
             Fechar
           </button>
