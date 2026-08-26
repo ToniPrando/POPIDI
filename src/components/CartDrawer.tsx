@@ -32,7 +32,7 @@ import {
 import { PaymentMethod, OrderType } from '../types';
 
 export const CartDrawer: React.FC = () => {
-  const { profile, user } = useAuth();
+  const { profile, user, setIsAuthModalOpen, setAuthModalTab } = useAuth();
   const {
     cart,
     isCartOpen,
@@ -70,6 +70,7 @@ export const CartDrawer: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pixCopied, setPixCopied] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [orderError, setOrderError] = useState<string | null>(null);
 
   // CEP Search State
   const [cepInput, setCepInput] = useState(deliveryAddress.cep || '');
@@ -225,6 +226,7 @@ export const CartDrawer: React.FC = () => {
   };
 
   const handleNextStep = () => {
+    setOrderError(null);
     if (checkoutStep === 'cart') {
       setCheckoutStep('details');
     } else if (checkoutStep === 'details') {
@@ -235,14 +237,16 @@ export const CartDrawer: React.FC = () => {
   };
 
   const handleCompleteOrder = async () => {
+    setOrderError(null);
     if (!validateDetailsStep()) {
       setCheckoutStep('details');
+      setOrderError('Por favor, preencha os dados de contato e endereço antes de finalizar.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // 1. Create order in persistent state
+      // 1. Create order in persistent state (Firestore & Local)
       const createdOrder = await placeOrder();
 
       // 2. Trigger celebration confetti
@@ -254,14 +258,19 @@ export const CartDrawer: React.FC = () => {
       });
 
       // 3. Open WhatsApp with pre-filled message
-      openWhatsAppOrder(createdOrder, storeSettings);
+      try {
+        openWhatsAppOrder(createdOrder, storeSettings);
+      } catch (waErr) {
+        console.warn('Could not launch WhatsApp:', waErr);
+      }
 
       // 4. Close cart and open tracker
       setIsCartOpen(false);
       setIsOrderTrackerOpen(true);
       setCheckoutStep('cart');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error placing order:', err);
+      setOrderError(err?.message || 'Erro ao registrar o pedido. Verifique seus dados e tente novamente.');
     } finally {
       setIsSubmitting(false);
     }
@@ -568,6 +577,33 @@ export const CartDrawer: React.FC = () => {
                 {checkoutStep === 'details' && (
                   <div className="space-y-5 text-left">
                     
+                    {/* User Profile Connected Badge or Login Suggestion */}
+                    {(profile || user) ? (
+                      <div className="p-3 bg-emerald-950/40 border border-emerald-800/40 rounded-xl flex items-center justify-between text-xs text-emerald-300">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <span className="truncate">Conectado como <strong>{profile?.name || user?.displayName || 'Cliente'}</strong></span>
+                        </div>
+                        <span className="font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 shrink-0 ml-2">
+                          ⭐ {profile?.loyaltyPoints ?? 50} pts
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-zinc-900/90 border border-zinc-800 rounded-xl flex items-center justify-between text-xs text-zinc-300">
+                        <span>Quer acumular pontos de fidelidade?</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAuthModalTab('login');
+                            setIsAuthModalOpen(true);
+                          }}
+                          className="text-amber-400 hover:text-amber-300 font-bold underline shrink-0 ml-2 cursor-pointer"
+                        >
+                          Entrar / Cadastrar
+                        </button>
+                      </div>
+                    )}
+
                     {/* Order Type Toggle */}
                     <div>
                       <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-2">
@@ -1072,6 +1108,16 @@ export const CartDrawer: React.FC = () => {
                   <span className="text-amber-400 text-lg font-black">{formatBRL(total)}</span>
                 </div>
               </div>
+
+              {orderError && (
+                <div className="p-3 bg-red-950/60 border border-red-800/80 rounded-xl text-xs text-red-300 flex items-start gap-2 animate-in fade-in">
+                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Atenção ao finalizar pedido:</p>
+                    <p className="mt-0.5">{orderError}</p>
+                  </div>
+                </div>
+              )}
 
               {/* Navigation Action Buttons */}
               <div className="flex items-center gap-2 pt-1">

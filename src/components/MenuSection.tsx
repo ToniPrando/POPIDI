@@ -52,11 +52,6 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
 
   const handleQuickAdd = (e: React.MouseEvent, item: MenuItem) => {
     e.stopPropagation();
-    if (!user) {
-      setAuthModalTab('login');
-      setIsAuthModalOpen(true);
-      return;
-    }
     // If item has required customization, open modal instead
     if (item.customizationGroups && item.customizationGroups.some(g => g.required)) {
       onOpenProductModal(item);

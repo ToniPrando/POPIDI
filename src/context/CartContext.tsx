@@ -124,7 +124,7 @@ const playKitchenChime = () => {
 };
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, profile, setIsAuthModalOpen, setAuthModalTab } = useAuth();
+  const { user, profile, addLoyaltyPoints, setIsAuthModalOpen, setAuthModalTab } = useAuth();
   const initialMountRef = useRef(true);
 
   // Active menu category state and smooth navigation helper
@@ -372,19 +372,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // When authenticated user changes or orders update, auto-select ongoing order if not already tracking
   useEffect(() => {
-    if (user && !activeOrder && orders.length > 0) {
+    if ((user || profile) && !activeOrder && orders.length > 0) {
       const userOrders = orders.filter(o => {
         const email = o.userEmail || o.customerEmail || o.customer?.email;
-        const matchesEmail = Boolean(user.email && email && email.toLowerCase() === user.email.toLowerCase());
-        const matchesUid = Boolean(user.uid && o.userId && o.userId === user.uid);
-        return matchesEmail || matchesUid;
+        const targetEmail = user?.email || profile?.email;
+        const matchesEmail = Boolean(targetEmail && email && email.toLowerCase() === targetEmail.toLowerCase());
+        const targetUid = user?.uid || profile?.uid;
+        const matchesUid = Boolean(targetUid && o.userId && o.userId === targetUid);
+        const targetPhone = profile?.phone ? profile.phone.replace(/\D/g, '') : '';
+        const orderPhone = (o.customerPhone || o.customer?.phone || '').replace(/\D/g, '');
+        const matchesPhone = Boolean(targetPhone && orderPhone && orderPhone === targetPhone);
+        return matchesEmail || matchesUid || matchesPhone;
       });
       const ongoing = userOrders.find(o => o.status !== 'completed' && o.status !== 'cancelled');
       if (ongoing) {
         setActiveOrder(ongoing);
       }
     }
-  }, [orders, activeOrder, user]);
+  }, [orders, activeOrder, user, profile]);
 
   // Method to search and track an order across devices by short code, ID, phone, or email
   const searchAndTrackOrder = async (searchTerm: string): Promise<{ success: boolean; message: string; order?: Order }> => {
@@ -445,12 +450,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     customizations: CartItem['customizations'] = [],
     notes: string = ''
   ) => {
-    if (!user) {
-      setAuthModalTab('login');
-      setIsAuthModalOpen(true);
-      return;
-    }
-
     const basePrice = item.promotionalPrice ?? item.price;
     const extrasTotal = customizations.reduce((sum, group) => {
       return sum + group.selectedOptions.reduce((gSum, opt) => gSum + opt.price, 0);
@@ -571,15 +570,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const placeOrder = async (): Promise<Order> => {
-    if (!user) {
-      setAuthModalTab('login');
-      setIsAuthModalOpen(true);
-      throw new Error('Você precisa estar conectado à sua conta para finalizar o pedido.');
-    }
-
     const shortCode = `#PO-${Math.floor(1000 + Math.random() * 9000)}`;
     const now = new Date().toISOString();
-    const currentUserId = auth.currentUser?.uid;
+    
+    // Resolve user ID from profile, auth, or phone
+    const resolvedUid = profile?.uid || user?.uid || (customerInfo.phone ? `cust_${customerInfo.phone.replace(/\D/g, '')}` : undefined);
+    const resolvedEmail = user?.email || profile?.email || customerInfo.email || undefined;
+    const resolvedPhone = customerInfo.phone || profile?.phone || undefined;
+    const resolvedName = customerInfo.name.trim() || profile?.name || user?.displayName || 'Cliente Pó Pi Di';
 
     const neighborhoodObj = storeSettings.neighborhoodFees.find(
       n => n.neighborhood.toLowerCase() === (deliveryAddress.neighborhood || '').toLowerCase()
@@ -593,10 +591,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newOrder: Order = {
       id: orderId,
       shortCode,
-      userId: currentUserId || undefined,
-      userEmail: user?.email || undefined,
-      customerEmail: user?.email || customerInfo.email || undefined,
-      customerPhone: customerInfo.phone || profile?.phone || undefined,
+      userId: resolvedUid,
+      userEmail: resolvedEmail,
+      customerEmail: resolvedEmail,
+      customerPhone: resolvedPhone,
       createdAt: now,
       status: 'received',
       statusHistory: [
@@ -613,7 +611,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       discount,
       couponCode: appliedCoupon?.code,
       total,
-      customer: { ...customerInfo },
+      customer: {
+        name: resolvedName,
+        phone: resolvedPhone || '',
+        email: resolvedEmail || '',
+      },
       deliveryAddress: orderType === 'delivery' ? { ...deliveryAddress } : undefined,
       paymentMethod,
       cashChangeFor: paymentMethod === 'cash' ? cashChangeFor : undefined,
@@ -625,10 +627,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await saveOrderToFirestore(newOrder);
 
-      // If user logged in, also update loyalty points
-      if (currentUserId) {
-        const pointsEarned = Math.floor(newOrder.total);
-        await creditUserLoyaltyPoints(currentUserId, pointsEarned);
+      // If user profile is logged in, credit points in Firestore and local state
+      const pointsEarned = Math.floor(newOrder.total);
+      if (resolvedUid) {
+        await creditUserLoyaltyPoints(resolvedUid, pointsEarned).catch(() => {});
+      }
+      if (profile?.uid) {
+        addLoyaltyPoints(pointsEarned).catch(() => {});
       }
     } catch (err) {
       console.warn('Could not save order directly to Firestore, saving locally:', err);

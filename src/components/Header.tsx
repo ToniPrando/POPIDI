@@ -209,21 +209,21 @@ export const Header: React.FC = () => {
             )}
 
             {/* Customer Login / Account Menu */}
-            {user ? (
+            {(user || profile) ? (
               <div className="relative">
                 <button
                   id="btn-user-account-menu"
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                   className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-2 text-xs font-bold text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-colors"
                 >
-                  {user.photoURL ? (
+                  {user?.photoURL ? (
                     <img src={user.photoURL} alt="Avatar" className="w-6 h-6 rounded-full object-cover border border-emerald-400" />
                   ) : (
                     <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-emerald-400 font-black text-xs">
-                      {(profile?.name || user.displayName || 'C').charAt(0).toUpperCase()}
+                      {(profile?.name || user?.displayName || 'C').charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <span className="hidden sm:inline max-w-[90px] truncate">{profile?.name?.split(' ')[0] || user.displayName?.split(' ')[0] || 'Minha Conta'}</span>
+                  <span className="hidden sm:inline max-w-[90px] truncate">{profile?.name?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'Minha Conta'}</span>
                   <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
                 </button>
 
@@ -231,8 +231,8 @@ export const Header: React.FC = () => {
                 {userDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-60 bg-[#0e0914] border border-zinc-800 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                     <div className="px-3 py-2 border-b border-zinc-800/80 mb-1">
-                      <p className="text-xs font-black text-white truncate">{profile?.name || user.displayName}</p>
-                      <p className="text-[11px] text-zinc-400 truncate">{user.email}</p>
+                      <p className="text-xs font-black text-white truncate">{profile?.name || user?.displayName || 'Cliente'}</p>
+                      <p className="text-[11px] text-zinc-400 truncate">{profile?.email || user?.email || profile?.phone || ''}</p>
                       
                       {/* Loyalty Badge in dropdown */}
                       <div className="mt-1.5 flex items-center justify-between bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg">
@@ -399,10 +399,10 @@ export const Header: React.FC = () => {
 
           {/* Customer Auth Actions in Mobile */}
           <div className="p-3 bg-zinc-900/60 rounded-2xl border border-zinc-800 space-y-2">
-            {user ? (
+            {(user || profile) ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-white">{profile?.name || user.displayName || user.email}</span>
+                  <span className="text-xs font-black text-white">{profile?.name || user?.displayName || user?.email || profile?.phone}</span>
                   <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded-full">Conectado</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">

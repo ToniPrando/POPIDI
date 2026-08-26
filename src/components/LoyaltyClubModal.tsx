@@ -44,7 +44,7 @@ export const LoyaltyClubModal: React.FC<LoyaltyClubModalProps> = ({ isOpen, onCl
     setSuccessMessage(null);
     setErrorMessage(null);
 
-    if (!user) {
+    if (!user && !profile) {
       setAuthModalTab('register');
       setIsAuthModalOpen(true);
       return;

@@ -43,15 +43,18 @@ export const OrderHistoryModal: React.FC = () => {
 
   const currentLoyaltyPoints = profile?.loyaltyPoints ?? (user ? 50 : 0);
 
-  // Filter orders strictly for the logged-in user
+  // Filter orders for the logged-in user or profile
   const userOrders = useMemo(() => {
-    if (!user) return [];
+    if (!user && !profile) return [];
     return orders.filter(order => {
       const email = order.userEmail || order.customerEmail || order.customer?.email;
-      const matchesEmail = Boolean(user.email && email && email.toLowerCase() === user.email.toLowerCase());
-      const matchesUid = Boolean(user.uid && order.userId && order.userId === user.uid);
-      const phone = order.customerPhone || order.customer?.phone;
-      const matchesPhone = Boolean(profile?.phone && phone && phone.replace(/\D/g, '') === profile.phone.replace(/\D/g, ''));
+      const targetEmail = user?.email || profile?.email;
+      const matchesEmail = Boolean(targetEmail && email && email.toLowerCase() === targetEmail.toLowerCase());
+      const targetUid = user?.uid || profile?.uid;
+      const matchesUid = Boolean(targetUid && order.userId && order.userId === targetUid);
+      const phone = (order.customerPhone || order.customer?.phone || '').replace(/\D/g, '');
+      const targetPhone = profile?.phone ? profile.phone.replace(/\D/g, '') : '';
+      const matchesPhone = Boolean(targetPhone && phone && phone === targetPhone);
       return matchesEmail || matchesUid || matchesPhone;
     });
   }, [orders, user, profile]);
@@ -175,7 +178,7 @@ export const OrderHistoryModal: React.FC = () => {
               <div>
                 <span className="text-xs font-black text-white block">Clube Fidelidade PO-PI-DI</span>
                 <span className="text-[11px] text-amber-300 font-bold">
-                  {user ? `Seu saldo: ${currentLoyaltyPoints} pontos` : 'Faça login para resgatar prêmios'}
+                  {(user || profile) ? `Seu saldo: ${currentLoyaltyPoints} pontos` : 'Faça login para resgatar prêmios'}
                 </span>
               </div>
             </div>
@@ -189,7 +192,7 @@ export const OrderHistoryModal: React.FC = () => {
             </button>
           </div>
 
-          {!user ? (
+          {!(user || profile) ? (
             <div className="py-8 text-center space-y-4 px-4 bg-zinc-900/40 rounded-2xl border border-zinc-800/80">
               <div className="w-14 h-14 rounded-2xl bg-fuchsia-950/50 border border-fuchsia-800/40 flex items-center justify-center mx-auto text-fuchsia-400 shadow-[0_0_15px_rgba(240,70,245,0.2)]">
                 <Lock className="w-7 h-7" />

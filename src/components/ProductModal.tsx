@@ -130,13 +130,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({ item: propItem, onCl
     });
   }
 
-  const handleAddToCart = (directToCheckout = false) => {
+  const handleAddToCart = (_directToCheckout: boolean = false) => {
     if (isMissingRequired) return;
-    if (!user) {
-      setAuthModalTab('login');
-      setIsAuthModalOpen(true);
-      return;
-    }
     addToCart(item, quantity, formattedCustomizations, notes);
     onClose();
     setIsCartOpen(true);
