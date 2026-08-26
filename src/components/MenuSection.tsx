@@ -46,12 +46,24 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
   onOpenProductModal,
   activeCategory,
 }) => {
-  const { addToCart, setIsCartOpen } = useCart();
+  const { addToCart, setIsCartOpen, storeSettings, triggerStoreClosedNotice } = useCart();
   const { user, setIsAuthModalOpen, setAuthModalTab } = useAuth();
   const [viewMode, setViewMode] = useState<'compact' | 'standard'>('compact');
 
+  const handleItemClick = (item: MenuItem) => {
+    if (storeSettings.isOpen === false) {
+      triggerStoreClosedNotice();
+      return;
+    }
+    onOpenProductModal(item);
+  };
+
   const handleQuickAdd = (e: React.MouseEvent, item: MenuItem) => {
     e.stopPropagation();
+    if (storeSettings.isOpen === false) {
+      triggerStoreClosedNotice();
+      return;
+    }
     // If item has required customization, open modal instead
     if (item.customizationGroups && item.customizationGroups.some(g => g.required)) {
       onOpenProductModal(item);
@@ -79,12 +91,13 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
   // Helper component to render a single compact small quadro
   const renderCompactCard = (item: MenuItem) => {
     const hasCustomization = Boolean(item.customizationGroups && item.customizationGroups.length > 0);
+    const isClosed = storeSettings.isOpen === false;
 
     return (
       <div
         key={item.id}
         id={`menu-item-compact-${item.id}`}
-        onClick={() => onOpenProductModal(item)}
+        onClick={() => handleItemClick(item)}
         className={`group relative bg-[#0d0e16] hover:bg-[#121420] rounded-xl border border-zinc-800/90 hover:border-emerald-500/70 transition-all duration-300 overflow-hidden flex flex-col justify-between shadow-md hover:shadow-xl hover:shadow-emerald-500/10 cursor-pointer p-2.5 sm:p-3 hover:-translate-y-1 ${
           !item.available ? 'opacity-60 grayscale' : ''
         }`}
@@ -199,6 +212,39 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
     <section id="cardapio-section" className="py-6 sm:py-10">
       <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-8">
         
+        {/* Store Closed Banner if inactive */}
+        {storeSettings.isOpen === false && (
+          <div 
+            onClick={triggerStoreClosedNotice}
+            className="mb-8 p-4 sm:p-5 bg-gradient-to-r from-red-950/80 via-red-900/50 to-red-950/80 border-2 border-red-500/60 rounded-2xl shadow-xl shadow-red-950/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:border-red-400 transition-colors"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shrink-0 animate-pulse">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="bg-red-500 text-black font-black text-[10px] uppercase px-2 py-0.5 rounded-full">
+                    Fechado no Momento
+                  </span>
+                  <h3 className="text-sm sm:text-base font-black text-white">
+                    Estabelecimento Fechado para Pedidos
+                  </h3>
+                </div>
+                <p className="text-xs text-zinc-300 mt-0.5">
+                  Estamos fechados no momento. Você pode navegar no cardápio para conhecer nossos burgers e porções!
+                </p>
+              </div>
+            </div>
+            <button 
+              type="button"
+              className="px-4 py-2 bg-red-500 hover:bg-red-400 text-black font-black text-xs rounded-xl shadow transition-colors shrink-0 cursor-pointer"
+            >
+              Ver Horários & Info
+            </button>
+          </div>
+        )}
+
         {/* Section Header Title & View Toggle */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-fuchsia-950/60">
           <div>

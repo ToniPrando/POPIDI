@@ -62,6 +62,7 @@ export const CartDrawer: React.FC = () => {
     placeOrder,
     setIsOrderTrackerOpen,
     storeSettings,
+    triggerStoreClosedNotice,
   } = useCart();
 
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'details' | 'payment'>('cart');
@@ -225,8 +226,15 @@ export const CartDrawer: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
+  const isStoreClosed = storeSettings.isOpen === false;
+
   const handleNextStep = () => {
     setOrderError(null);
+    if (isStoreClosed) {
+      triggerStoreClosedNotice();
+      setOrderError('Estabelecimento Fechado! Não estamos aceitando novos pedidos no momento.');
+      return;
+    }
     if (checkoutStep === 'cart') {
       setCheckoutStep('details');
     } else if (checkoutStep === 'details') {
@@ -238,6 +246,11 @@ export const CartDrawer: React.FC = () => {
 
   const handleCompleteOrder = async () => {
     setOrderError(null);
+    if (isStoreClosed) {
+      triggerStoreClosedNotice();
+      setOrderError('Estabelecimento Fechado! Não estamos aceitando novos pedidos no momento.');
+      return;
+    }
     if (!validateDetailsStep()) {
       setCheckoutStep('details');
       setOrderError('Por favor, preencha os dados de contato e endereço antes de finalizar.');
@@ -1121,39 +1134,52 @@ export const CartDrawer: React.FC = () => {
 
               {/* Navigation Action Buttons */}
               <div className="flex items-center gap-2 pt-1">
-                {checkoutStep !== 'cart' && (
+                {isStoreClosed ? (
                   <button
-                    onClick={() => {
-                      if (checkoutStep === 'payment') setCheckoutStep('details');
-                      else if (checkoutStep === 'details') setCheckoutStep('cart');
-                    }}
-                    className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold text-xs px-3.5 py-3.5 rounded-xl border border-zinc-800 transition-colors"
+                    type="button"
+                    onClick={triggerStoreClosedNotice}
+                    className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white font-black text-sm py-3.5 rounded-xl shadow-lg shadow-red-950/50 cursor-pointer transition-all"
                   >
-                    Voltar
-                  </button>
-                )}
-
-                {checkoutStep !== 'payment' ? (
-                  <button
-                    id="btn-cart-continue-step"
-                    onClick={handleNextStep}
-                    className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm py-3.5 rounded-xl shadow-lg shadow-amber-600/20 hover:scale-[1.01] active:scale-98 transition-all cursor-pointer"
-                  >
-                    <span>
-                      {checkoutStep === 'cart' ? 'Avançar para Entrega/Retirada' : 'Ir para Opções de Pagamento'}
-                    </span>
-                    <ChevronRight className="w-4 h-4" />
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>Estabelecimento Fechado!</span>
                   </button>
                 ) : (
-                  <button
-                    id="btn-cart-complete-order"
-                    onClick={handleCompleteOrder}
-                    disabled={isSubmitting}
-                    className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-black text-sm py-3.5 rounded-xl shadow-lg shadow-emerald-600/20 hover:scale-[1.01] active:scale-98 transition-all disabled:opacity-50"
-                  >
-                    <Send className="w-4 h-4" />
-                    <span>{isSubmitting ? 'Gerando Pedido...' : 'Finalizar Pedido via WhatsApp'}</span>
-                  </button>
+                  <>
+                    {checkoutStep !== 'cart' && (
+                      <button
+                        onClick={() => {
+                          if (checkoutStep === 'payment') setCheckoutStep('details');
+                          else if (checkoutStep === 'details') setCheckoutStep('cart');
+                        }}
+                        className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold text-xs px-3.5 py-3.5 rounded-xl border border-zinc-800 transition-colors cursor-pointer"
+                      >
+                        Voltar
+                      </button>
+                    )}
+
+                    {checkoutStep !== 'payment' ? (
+                      <button
+                        id="btn-cart-continue-step"
+                        onClick={handleNextStep}
+                        className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm py-3.5 rounded-xl shadow-lg shadow-amber-600/20 hover:scale-[1.01] active:scale-98 transition-all cursor-pointer"
+                      >
+                        <span>
+                          {checkoutStep === 'cart' ? 'Avançar para Entrega/Retirada' : 'Ir para Opções de Pagamento'}
+                        </span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        id="btn-cart-complete-order"
+                        onClick={handleCompleteOrder}
+                        disabled={isSubmitting}
+                        className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-black text-sm py-3.5 rounded-xl shadow-lg shadow-emerald-600/20 hover:scale-[1.01] active:scale-98 transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        <Send className="w-4 h-4" />
+                        <span>{isSubmitting ? 'Gerando Pedido...' : 'Finalizar Pedido via WhatsApp'}</span>
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
 

@@ -1,15 +1,39 @@
 import { Order, StoreSettings } from '../types';
 
-export function formatBRL(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value);
+export function formatBRL(value: number | string | undefined | null): string {
+  const num = typeof value === 'number' && !isNaN(value) ? value : Number(value) || 0;
+  try {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(num);
+  } catch {
+    return `R$ ${num.toFixed(2).replace('.', ',')}`;
+  }
 }
 
-export function formatDateTime(isoString: string): string {
+export function formatDateTime(isoString: any): string {
+  if (!isoString) return '--/--/---- --:--';
   try {
-    const date = new Date(isoString);
+    let date: Date;
+    if (typeof isoString === 'object' && isoString !== null) {
+      if (typeof isoString.toDate === 'function') {
+        date = isoString.toDate();
+      } else if ('seconds' in isoString) {
+        date = new Date(Number(isoString.seconds) * 1000);
+      } else {
+        date = new Date(String(isoString));
+      }
+    } else if (typeof isoString === 'number') {
+      date = new Date(isoString);
+    } else {
+      date = new Date(String(isoString));
+    }
+
+    if (isNaN(date.getTime())) {
+      return typeof isoString === 'string' ? isoString : '--/--/---- --:--';
+    }
+
     return new Intl.DateTimeFormat('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -18,7 +42,7 @@ export function formatDateTime(isoString: string): string {
       minute: '2-digit',
     }).format(date);
   } catch {
-    return isoString;
+    return typeof isoString === 'string' ? isoString : '--/--/---- --:--';
   }
 }
 

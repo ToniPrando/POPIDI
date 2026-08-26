@@ -91,6 +91,9 @@ interface CartContextType {
   setIsAdminOpen: (open: boolean) => void;
   selectedProductForModal: MenuItem | null;
   setSelectedProductForModal: (item: MenuItem | null) => void;
+  isStoreClosedModalOpen: boolean;
+  setIsStoreClosedModalOpen: (open: boolean) => void;
+  triggerStoreClosedNotice: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -238,6 +241,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoyaltyOpen, setIsLoyaltyOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [selectedProductForModal, setSelectedProductForModal] = useState<MenuItem | null>(null);
+  const [isStoreClosedModalOpen, setIsStoreClosedModalOpen] = useState(false);
+
+  const triggerStoreClosedNotice = () => {
+    setIsStoreClosedModalOpen(true);
+  };
 
   // Sync to local storage
   useEffect(() => {
@@ -450,6 +458,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     customizations: CartItem['customizations'] = [],
     notes: string = ''
   ) => {
+    // If establishment is closed, prevent adding to cart and show closed notice
+    if (storeSettings.isOpen === false) {
+      setIsStoreClosedModalOpen(true);
+      return;
+    }
+
     const basePrice = item.promotionalPrice ?? item.price;
     const extrasTotal = customizations.reduce((sum, group) => {
       return sum + group.selectedOptions.reduce((gSum, opt) => gSum + opt.price, 0);
@@ -570,6 +584,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const placeOrder = async (): Promise<Order> => {
+    if (storeSettings.isOpen === false) {
+      setIsStoreClosedModalOpen(true);
+      throw new Error('Estabelecimento Fechado! Não estamos aceitando pedidos no momento.');
+    }
+
     const shortCode = `#PO-${Math.floor(1000 + Math.random() * 9000)}`;
     const now = new Date().toISOString();
     
@@ -764,6 +783,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAdminOpen,
         selectedProductForModal,
         setSelectedProductForModal,
+        isStoreClosedModalOpen,
+        setIsStoreClosedModalOpen,
+        triggerStoreClosedNotice,
       }}
     >
       {children}

@@ -39,6 +39,83 @@ export function sanitizeForFirestore<T>(obj: T): T {
 }
 
 /**
+ * Safely normalizes Firestore order data into a robust Order object.
+ */
+export function normalizeFirestoreOrder(data: any, id: string): Order {
+  let createdAtStr: string = new Date().toISOString();
+  if (data?.createdAt) {
+    if (typeof data.createdAt === 'object') {
+      if (typeof data.createdAt.toDate === 'function') {
+        createdAtStr = data.createdAt.toDate().toISOString();
+      } else if ('seconds' in data.createdAt) {
+        createdAtStr = new Date(Number(data.createdAt.seconds) * 1000).toISOString();
+      } else {
+        createdAtStr = String(data.createdAt);
+      }
+    } else {
+      createdAtStr = String(data.createdAt);
+    }
+  }
+
+  const rawItems = Array.isArray(data?.items) ? data.items : [];
+  const items = rawItems.map((it: any, index: number) => {
+    const rawMenuItem = it?.menuItem && typeof it.menuItem === 'object' ? it.menuItem : null;
+    return {
+      id: it?.id || `item-${index}-${Date.now()}`,
+      quantity: Number(it?.quantity) || 1,
+      unitPrice: Number(it?.unitPrice) || 0,
+      totalPrice: Number(it?.totalPrice) || 0,
+      menuItem: {
+        id: rawMenuItem?.id || it?.menuItemId || `item-${index}`,
+        name: rawMenuItem?.name || it?.name || 'Item do Pedido',
+        price: Number(rawMenuItem?.price) || Number(it?.unitPrice) || 0,
+        promotionalPrice: rawMenuItem?.promotionalPrice,
+        description: rawMenuItem?.description || '',
+        image: rawMenuItem?.image || '',
+        category: rawMenuItem?.category || 'artesanais',
+        badge: rawMenuItem?.badge,
+        prepTimeMinutes: rawMenuItem?.prepTimeMinutes,
+        available: rawMenuItem?.available !== false,
+        customizationGroups: Array.isArray(rawMenuItem?.customizationGroups) ? rawMenuItem.customizationGroups : [],
+      },
+      customizations: Array.isArray(it?.customizations) ? it.customizations : [],
+      notes: typeof it?.notes === 'string' ? it.notes : '',
+    };
+  });
+
+  const rawCustomer = data?.customer && typeof data.customer === 'object' ? data.customer : {};
+  const customerName = rawCustomer.name || data?.customerName || data?.userName || 'Cliente';
+  const customerPhone = rawCustomer.phone || data?.customerPhone || data?.userPhone || '';
+  const customerEmail = rawCustomer.email || data?.customerEmail || data?.userEmail || '';
+
+  return {
+    ...data,
+    id: id || data?.id || String(Math.random()),
+    shortCode: data?.shortCode || (`#PO-${(id || '0000').slice(-4).toUpperCase()}`),
+    createdAt: createdAtStr,
+    userId: data?.userId || data?.userUid,
+    userEmail: data?.userEmail || customerEmail,
+    customerPhone: data?.customerPhone || customerPhone,
+    customerEmail: data?.customerEmail || customerEmail,
+    total: Number(data?.total) || 0,
+    subtotal: Number(data?.subtotal) || 0,
+    deliveryFee: Number(data?.deliveryFee) || 0,
+    discount: Number(data?.discount) || 0,
+    status: data?.status || 'received',
+    statusHistory: Array.isArray(data?.statusHistory) ? data.statusHistory : [],
+    paymentMethod: data?.paymentMethod || 'pix',
+    orderType: data?.orderType || 'delivery',
+    items,
+    customer: {
+      name: customerName,
+      phone: customerPhone,
+      email: customerEmail,
+    },
+    deliveryAddress: data?.deliveryAddress && typeof data.deliveryAddress === 'object' ? data.deliveryAddress : undefined,
+  };
+}
+
+/**
  * Saves a new or existing order to Firestore in real-time.
  * Propagates immediately to all connected devices (Client & Kitchen/Admin).
  */
@@ -76,11 +153,8 @@ export function subscribeToOrders(onUpdate: (orders: Order[]) => void, onError?:
     (snapshot) => {
       const list: Order[] = [];
       snapshot.forEach((docSnap) => {
-        const data = docSnap.data() as Order;
-        list.push({
-          ...data,
-          id: docSnap.id,
-        });
+        const rawData = docSnap.data();
+        list.push(normalizeFirestoreOrder(rawData, docSnap.id));
       });
 
       // Sort by creation date descending (newest first)
@@ -113,10 +187,7 @@ export function subscribeToOrder(
     orderRef,
     (docSnap) => {
       if (docSnap.exists()) {
-        onUpdate({
-          ...(docSnap.data() as Order),
-          id: docSnap.id,
-        });
+        onUpdate(normalizeFirestoreOrder(docSnap.data(), docSnap.id));
       } else {
         onUpdate(null);
       }
@@ -186,7 +257,7 @@ export async function findOrderInFirestore(term: string): Promise<Order | null> 
   try {
     const directSnap = await getDoc(doc(db, 'orders', raw));
     if (directSnap.exists()) {
-      return { ...(directSnap.data() as Order), id: directSnap.id };
+      return normalizeFirestoreOrder(directSnap.data(), directSnap.id);
     }
   } catch (e) {}
 
@@ -197,7 +268,7 @@ export async function findOrderInFirestore(term: string): Promise<Order | null> 
     const codeSnap = await getDocs(codeQuery);
     if (!codeSnap.empty) {
       const docSnap = codeSnap.docs[0];
-      return { ...(docSnap.data() as Order), id: docSnap.id };
+      return normalizeFirestoreOrder(docSnap.data(), docSnap.id);
     }
   } catch (e) {}
 
@@ -208,7 +279,7 @@ export async function findOrderInFirestore(term: string): Promise<Order | null> 
       const phoneSnap = await getDocs(phoneQuery);
       if (!phoneSnap.empty) {
         const docSnap = phoneSnap.docs[0];
-        return { ...(docSnap.data() as Order), id: docSnap.id };
+        return normalizeFirestoreOrder(docSnap.data(), docSnap.id);
       }
     } catch (e) {}
   }
@@ -218,7 +289,7 @@ export async function findOrderInFirestore(term: string): Promise<Order | null> 
     const recentQuery = query(collection(db, 'orders'), limit(50));
     const recentSnap = await getDocs(recentQuery);
     for (const d of recentSnap.docs) {
-      const ord = { ...(d.data() as Order), id: d.id };
+      const ord = normalizeFirestoreOrder(d.data(), d.id);
       if (
         ord.shortCode?.toUpperCase().includes(cleanCode.replace('#', '')) ||
         (cleanNumbers.length >= 8 && ord.customerPhone?.replace(/\D/g, '').includes(cleanNumbers)) ||

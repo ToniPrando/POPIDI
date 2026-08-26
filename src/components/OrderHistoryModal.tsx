@@ -19,13 +19,15 @@ import {
   LogIn,
   Search,
   Cloud,
-  ArrowRight
+  ArrowRight,
+  AlertCircle
 } from 'lucide-react';
 import { Order } from '../types';
 
 export const OrderHistoryModal: React.FC = () => {
   const { 
     orders, 
+    customerInfo,
     isOrderHistoryOpen, 
     setIsOrderHistoryOpen, 
     reorder, 
@@ -43,13 +45,28 @@ export const OrderHistoryModal: React.FC = () => {
 
   const currentLoyaltyPoints = profile?.loyaltyPoints ?? (user ? 50 : 0);
 
-  // Filter orders for the logged-in user or profile
+  // Filter orders for the logged-in user or profile, or show recent device orders as fallback
   const userOrders = useMemo(() => {
-    if (!user && !profile) return [];
-    return orders.filter(order => {
+    const allOrders = Array.isArray(orders) ? orders : [];
+    if (!user && !profile) {
+      const currentPhone = (customerInfo?.phone || '').replace(/\D/g, '');
+      const currentEmail = (customerInfo?.email || '').toLowerCase().trim();
+      if (currentPhone || currentEmail) {
+        return allOrders.filter(order => {
+          if (!order) return false;
+          const phone = (order.customerPhone || order.customer?.phone || '').replace(/\D/g, '');
+          const email = (order.customerEmail || order.customer?.email || order.userEmail || '').toLowerCase().trim();
+          return (currentPhone && phone === currentPhone) || (currentEmail && email === currentEmail);
+        });
+      }
+      return allOrders.slice(0, 10);
+    }
+
+    return allOrders.filter(order => {
+      if (!order) return false;
       const email = order.userEmail || order.customerEmail || order.customer?.email;
       const targetEmail = user?.email || profile?.email;
-      const matchesEmail = Boolean(targetEmail && email && email.toLowerCase() === targetEmail.toLowerCase());
+      const matchesEmail = Boolean(targetEmail && email && String(email).toLowerCase() === String(targetEmail).toLowerCase());
       const targetUid = user?.uid || profile?.uid;
       const matchesUid = Boolean(targetUid && order.userId && order.userId === targetUid);
       const phone = (order.customerPhone || order.customer?.phone || '').replace(/\D/g, '');
@@ -57,7 +74,7 @@ export const OrderHistoryModal: React.FC = () => {
       const matchesPhone = Boolean(targetPhone && phone && phone === targetPhone);
       return matchesEmail || matchesUid || matchesPhone;
     });
-  }, [orders, user, profile]);
+  }, [orders, user, profile, customerInfo]);
 
   const handleTrackOrder = (order: Order) => {
     setActiveOrder(order);
@@ -121,7 +138,7 @@ export const OrderHistoryModal: React.FC = () => {
 
           <button
             onClick={() => setIsOrderHistoryOpen(false)}
-            className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800"
+            className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -192,7 +209,7 @@ export const OrderHistoryModal: React.FC = () => {
             </button>
           </div>
 
-          {!(user || profile) ? (
+          {!(user || profile) && userOrders.length === 0 ? (
             <div className="py-8 text-center space-y-4 px-4 bg-zinc-900/40 rounded-2xl border border-zinc-800/80">
               <div className="w-14 h-14 rounded-2xl bg-fuchsia-950/50 border border-fuchsia-800/40 flex items-center justify-center mx-auto text-fuchsia-400 shadow-[0_0_15px_rgba(240,70,245,0.2)]">
                 <Lock className="w-7 h-7" />
@@ -223,85 +240,97 @@ export const OrderHistoryModal: React.FC = () => {
               </p>
             </div>
           ) : (
-            userOrders.map(order => (
-              <div
-                key={order.id}
-                className="p-4 bg-zinc-900/70 hover:bg-zinc-900 rounded-xl border border-zinc-800 space-y-3 transition-colors text-left"
-              >
-                <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5">
-                  <div>
-                    <span className="font-mono text-xs font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 mr-2">
-                      {order.shortCode}
-                    </span>
-                    <span className="text-xs text-zinc-400">
-                      {formatDateTime(order.createdAt)}
-                    </span>
-                  </div>
+            userOrders.map((order, orderIdx) => {
+              const safeItems = Array.isArray(order?.items) ? order.items : [];
+              const safeTotal = Number(order?.total) || 0;
+              const safeShortCode = order?.shortCode || `#PO-${(order?.id || String(orderIdx)).slice(-4).toUpperCase()}`;
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <Star className="w-3 h-3 fill-amber-400" />
-                      +{Math.floor(order.total)} pts
-                    </span>
-
-                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                      order.status === 'completed'
-                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                        : order.status === 'preparing'
-                        ? 'bg-amber-950 text-amber-400 border border-amber-800'
-                        : 'bg-blue-950 text-blue-400 border border-blue-800'
-                    }`}>
-                      {order.status === 'received' && 'Recebido'}
-                      {order.status === 'preparing' && 'Na Chapa'}
-                      {order.status === 'out_for_delivery' && 'Em Entrega'}
-                      {order.status === 'ready' && 'Pronto'}
-                      {order.status === 'completed' && 'Entregue'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Items summary */}
-                <div className="text-xs text-zinc-300 space-y-1">
-                  {order.items.map((it, idx) => (
-                    <div key={idx} className="flex justify-between">
-                      <span className="text-zinc-200">
-                        {it.quantity}x {it.menuItem.name}
+              return (
+                <div
+                  key={order.id || orderIdx}
+                  className="p-4 bg-zinc-900/70 hover:bg-zinc-900 rounded-xl border border-zinc-800 space-y-3 transition-colors text-left"
+                >
+                  <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5">
+                    <div>
+                      <span className="font-mono text-xs font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 mr-2">
+                        {safeShortCode}
                       </span>
-                      <span className="text-zinc-400 font-medium">
-                        {formatBRL(it.totalPrice)}
+                      <span className="text-xs text-zinc-400">
+                        {formatDateTime(order.createdAt)}
                       </span>
                     </div>
-                  ))}
-                </div>
 
-                {/* Total & Action buttons */}
-                <div className="flex items-center justify-between pt-2.5 border-t border-zinc-800/80">
-                  <div>
-                    <span className="text-[11px] text-zinc-400 block">Total do Pedido:</span>
-                    <span className="text-sm font-black text-amber-400">{formatBRL(order.total)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-amber-400" />
+                        +{Math.floor(safeTotal)} pts
+                      </span>
+
+                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                        order.status === 'completed'
+                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                          : order.status === 'preparing'
+                          ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                          : 'bg-blue-950 text-blue-400 border border-blue-800'
+                      }`}>
+                        {order.status === 'received' && 'Recebido'}
+                        {order.status === 'preparing' && 'Na Chapa'}
+                        {order.status === 'out_for_delivery' && 'Em Entrega'}
+                        {order.status === 'ready' && 'Pronto'}
+                        {order.status === 'completed' && 'Entregue'}
+                        {order.status === 'cancelled' && 'Cancelado'}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleTrackOrder(order)}
-                      className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 font-medium transition-colors cursor-pointer"
-                    >
-                      <Eye className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Rastrear</span>
-                    </button>
-
-                    <button
-                      onClick={() => reorder(order)}
-                      className="flex items-center gap-1 text-xs bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 rounded-lg font-black transition-colors cursor-pointer"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Pedir Novamente</span>
-                    </button>
+                  {/* Items summary */}
+                  <div className="text-xs text-zinc-300 space-y-1">
+                    {safeItems.map((it, idx) => {
+                      const itemName = it?.menuItem?.name || it?.name || 'Item';
+                      const itemQuantity = it?.quantity || 1;
+                      const itemPrice = it?.totalPrice || 0;
+                      return (
+                        <div key={idx} className="flex justify-between">
+                          <span className="text-zinc-200">
+                            {itemQuantity}x {itemName}
+                          </span>
+                          <span className="text-zinc-400 font-medium">
+                            {formatBRL(itemPrice)}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
 
-              </div>
-            ))
+                  {/* Total & Action buttons */}
+                  <div className="flex items-center justify-between pt-2.5 border-t border-zinc-800/80">
+                    <div>
+                      <span className="text-[11px] text-zinc-400 block">Total do Pedido:</span>
+                      <span className="text-sm font-black text-amber-400">{formatBRL(safeTotal)}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleTrackOrder(order)}
+                        className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 font-medium transition-colors cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Rastrear</span>
+                      </button>
+
+                      <button
+                        onClick={() => reorder(order)}
+                        className="flex items-center gap-1 text-xs bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 rounded-lg font-black transition-colors cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Pedir Novamente</span>
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              );
+            })
           )}
         </div>
 

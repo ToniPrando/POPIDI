@@ -250,15 +250,15 @@ export const OrderTrackerModal: React.FC = () => {
           {/* Order Items Receipt Box */}
           <div className="p-4 bg-zinc-900/70 rounded-xl border border-zinc-800 space-y-3 text-xs">
             <div className="font-bold text-white border-b border-zinc-800 pb-2 flex items-center justify-between">
-              <span>Resumo dos Itens ({activeOrder.items.length})</span>
-              <span className="text-amber-400 font-extrabold">{formatBRL(activeOrder.total)}</span>
+              <span>Resumo dos Itens ({(activeOrder.items || []).length})</span>
+              <span className="text-amber-400 font-extrabold">{formatBRL(activeOrder.total || 0)}</span>
             </div>
 
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {activeOrder.items.map((it, i) => (
+              {(activeOrder.items || []).map((it, i) => (
                 <div key={i} className="flex justify-between text-zinc-300">
-                  <span>{it.quantity}x {it.menuItem.name}</span>
-                  <span className="font-medium">{formatBRL(it.totalPrice)}</span>
+                  <span>{it?.quantity || 1}x {it?.menuItem?.name || it?.name || 'Item'}</span>
+                  <span className="font-medium">{formatBRL(it?.totalPrice || 0)}</span>
                 </div>
               ))}
             </div>

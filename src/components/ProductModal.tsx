@@ -25,7 +25,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({ item: propItem, onCl
     selectedProductForModal, 
     setSelectedProductForModal, 
     addToCart, 
-    setIsCartOpen 
+    setIsCartOpen,
+    storeSettings,
+    triggerStoreClosedNotice
   } = useCart();
   const { user, setIsAuthModalOpen, setAuthModalTab } = useAuth();
 
@@ -130,7 +132,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({ item: propItem, onCl
     });
   }
 
+  const isStoreClosed = storeSettings.isOpen === false;
+
   const handleAddToCart = (_directToCheckout: boolean = false) => {
+    if (isStoreClosed) {
+      onClose();
+      triggerStoreClosedNotice();
+      return;
+    }
     if (isMissingRequired) return;
     addToCart(item, quantity, formattedCustomizations, notes);
     onClose();
@@ -350,27 +359,39 @@ export const ProductModal: React.FC<ProductModalProps> = ({ item: propItem, onCl
 
           {/* Action Buttons */}
           <div className="flex-1 flex gap-2">
-            <button
-              id="btn-confirm-add-to-cart"
-              onClick={() => handleAddToCart(false)}
-              disabled={isMissingRequired}
-              className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-white font-bold text-xs sm:text-sm py-3.5 px-3 rounded-xl border border-zinc-700 transition-all active:scale-98"
-            >
-              <ShoppingBag className="w-4 h-4 text-zinc-300" />
-              <span>Adicionar</span>
-            </button>
+            {isStoreClosed ? (
+              <button
+                id="btn-store-closed-modal"
+                onClick={() => handleAddToCart(false)}
+                className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs sm:text-sm py-3.5 px-4 rounded-xl shadow-lg shadow-red-950/40 transition-all cursor-pointer"
+              >
+                <span>Estabelecimento Fechado!</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  id="btn-confirm-add-to-cart"
+                  onClick={() => handleAddToCart(false)}
+                  disabled={isMissingRequired}
+                  className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-white font-bold text-xs sm:text-sm py-3.5 px-3 rounded-xl border border-zinc-700 transition-all active:scale-98 cursor-pointer"
+                >
+                  <ShoppingBag className="w-4 h-4 text-zinc-300" />
+                  <span>Adicionar</span>
+                </button>
 
-            <button
-              id="btn-buy-now-direct"
-              onClick={() => handleAddToCart(true)}
-              disabled={isMissingRequired}
-              className="flex-[1.5] flex items-center justify-between bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-400 hover:from-emerald-400 hover:to-green-300 disabled:opacity-50 text-black font-black text-xs sm:text-sm px-4 py-3.5 rounded-xl shadow-lg shadow-emerald-500/25 hover:scale-[1.01] active:scale-98 transition-all border border-emerald-300/50"
-            >
-              <span>Comprar Agora</span>
-              <span className="font-black bg-black/20 px-2 py-0.5 rounded-lg text-black">
-                {formatBRL(totalPrice)}
-              </span>
-            </button>
+                <button
+                  id="btn-buy-now-direct"
+                  onClick={() => handleAddToCart(true)}
+                  disabled={isMissingRequired}
+                  className="flex-[1.5] flex items-center justify-between bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-400 hover:from-emerald-400 hover:to-green-300 disabled:opacity-50 text-black font-black text-xs sm:text-sm px-4 py-3.5 rounded-xl shadow-lg shadow-emerald-500/25 hover:scale-[1.01] active:scale-98 transition-all border border-emerald-300/50 cursor-pointer"
+                >
+                  <span>Comprar Agora</span>
+                  <span className="font-black bg-black/20 px-2 py-0.5 rounded-lg text-black">
+                    {formatBRL(totalPrice)}
+                  </span>
+                </button>
+              </>
+            )}
           </div>
 
         </div>
