@@ -1,0 +1,93 @@
+import { StoreSettings, Coupon } from '../types';
+
+export const initialStoreSettings: StoreSettings = {
+  isOpen: true,
+  openingHoursText: 'Terça a Domingo: 18:30 às 23:30 (Fechado às Segundas)',
+  phoneWhatsApp: '5515997075641', // Formatted for direct wa.me link
+  address: 'R. Sarquis Abibe, 103, Centro',
+  cityState: 'Porto Feliz - SP',
+  cep: '18540-003',
+  fullAddress: 'R. Sarquis Abibe, 103, Centro, Porto Feliz - SP, CEP 18540-003',
+  instagramHandle: '@po_pi_di_hamburgueria',
+  instagramUrl: 'https://www.instagram.com/po_pi_di_hamburgueria?igsi=YXZrOWRldm5kd283',
+  googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=R.+Sarquis+Abibe,+103,+Centro,+Porto+Feliz+-+SP,+18540-003',
+  pixKey: '15997075641',
+  pixKeyType: 'Telefone',
+  pixReceiverName: 'PO-PI-DI Hamburgueria & Choperia',
+  pixCity: 'Porto Feliz',
+  minimumOrderValue: 20.0,
+  freeDeliveryThreshold: 85.0,
+  standardDeliveryFee: 6.0,
+  estimatedPrepTimeMin: 30,
+  estimatedPrepTimeMax: 50,
+  activeBannerAnnouncement: '🍔🍺 BEM-VINDO À PO-PI-DI HAMBURGUERIA & CHOPERIA! SMASH BURGERS, CHOPP ARTESANAL GELADO E O FAMOSO X-TUDO.',
+  neighborhoodFees: [
+    { neighborhood: 'Centro', fee: 5.0, estimatedMinutes: '25-40 min' },
+    { neighborhood: 'Jardim Santa Luzia', fee: 6.0, estimatedMinutes: '30-45 min' },
+    { neighborhood: 'Altos do Tietê', fee: 6.0, estimatedMinutes: '30-45 min' },
+    { neighborhood: 'Vila Progresso', fee: 6.0, estimatedMinutes: '30-45 min' },
+    { neighborhood: 'Jardim Vandelice', fee: 7.0, estimatedMinutes: '35-50 min' },
+    { neighborhood: 'Jardim América', fee: 7.0, estimatedMinutes: '35-50 min' },
+    { neighborhood: 'Jardim das Garças', fee: 7.0, estimatedMinutes: '35-50 min' },
+    { neighborhood: 'Outros Bairros / Perímetro Urbano', fee: 8.0, estimatedMinutes: '40-55 min' },
+  ],
+};
+
+export const availableCoupons: Coupon[] = [
+  {
+    code: 'POPIDI10',
+    discountType: 'percentage',
+    discountValue: 10,
+    minOrderValue: 40,
+    description: '10% de desconto em pedidos acima de R$ 40',
+  },
+  {
+    code: 'XTUDOLOVERS',
+    discountType: 'fixed',
+    discountValue: 6,
+    minOrderValue: 50,
+    description: 'R$ 6,00 OFF em pedidos a partir de R$ 50',
+  },
+  {
+    code: 'PRIMEIROBURGER',
+    discountType: 'fixed',
+    discountValue: 5,
+    minOrderValue: 35,
+    description: 'R$ 5,00 OFF no seu primeiro pedido artesanal',
+  },
+  {
+    code: 'CHOPP50PTS',
+    discountType: 'fixed',
+    discountValue: 12,
+    minOrderValue: 20,
+    description: 'Recompensa Clube: Chopp Artesanal 300ml Grátis (-R$ 12)',
+  },
+  {
+    code: 'BATATA100PTS',
+    discountType: 'fixed',
+    discountValue: 22,
+    minOrderValue: 30,
+    description: 'Recompensa Clube: Batata Rústica c/ Cheddar (-R$ 22)',
+  },
+  {
+    code: 'DESC25PTS',
+    discountType: 'fixed',
+    discountValue: 25,
+    minOrderValue: 40,
+    description: 'Recompensa Clube: R$ 25 de Desconto Especial',
+  },
+  {
+    code: 'XTUDO250PTS',
+    discountType: 'fixed',
+    discountValue: 33,
+    minOrderValue: 35,
+    description: 'Recompensa Clube: O Famoso X-Tudo Grátis (-R$ 33)',
+  },
+  {
+    code: 'VIPCOMBO350',
+    discountType: 'fixed',
+    discountValue: 45,
+    minOrderValue: 45,
+    description: 'Recompensa Clube: Combo VIP Master Grátis (-R$ 45)',
+  },
+];

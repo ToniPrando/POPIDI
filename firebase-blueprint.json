@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile with customer details, role, and addresses",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique user ID (matches Firebase Auth UID)" },
+        "name": { "type": "string", "description": "Full name of the user" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "phone": { "type": "string", "description": "WhatsApp contact number" },
+        "role": { "type": "string", "enum": ["customer", "admin"], "description": "Access role" },
+        "photoURL": { "type": "string", "description": "Profile picture URL from Google" },
+        "defaultAddress": { "type": "object", "description": "Saved delivery address" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Profile update timestamp" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "Order": {
+      "title": "Customer Order",
+      "description": "Real-time burger and beverage orders placed by customers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique order ID" },
+        "shortCode": { "type": "string", "description": "Human readable order code (e.g. #POP-1234)" },
+        "userId": { "type": "string", "description": "Auth UID of the customer or 'guest'" },
+        "customerName": { "type": "string", "description": "Name of the customer" },
+        "customerPhone": { "type": "string", "description": "WhatsApp phone" },
+        "orderType": { "type": "string", "enum": ["delivery", "takeaway"], "description": "Fulfillment type" },
+        "deliveryAddress": { "type": "object", "description": "Delivery address details" },
+        "items": { "type": "array", "description": "Ordered items with quantities and options" },
+        "subtotal": { "type": "number", "description": "Items subtotal" },
+        "deliveryFee": { "type": "number", "description": "Delivery fee in BRL" },
+        "discount": { "type": "number", "description": "Discount applied" },
+        "couponCode": { "type": "string", "description": "Applied promo code" },
+        "total": { "type": "number", "description": "Total order amount in BRL" },
+        "paymentMethod": { "type": "string", "enum": ["pix", "card", "cash"], "description": "Payment method chosen" },
+        "cashChangeFor": { "type": "number", "description": "Change requested for cash payment" },
+        "notes": { "type": "string", "description": "Customer notes/observations" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "preparing", "out_for_delivery", "ready_for_pickup", "completed", "cancelled"], "description": "Current order lifecycle status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Order placement timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last status update timestamp" }
+      },
+      "required": ["id", "shortCode", "customerName", "customerPhone", "orderType", "items", "total", "paymentMethod", "status"]
+    },
+    "StoreSetting": {
+      "title": "Store Settings",
+      "description": "Global store open/closed status, prep times, and announcements",
+      "type": "object",
+      "properties": {
+        "isOpen": { "type": "boolean", "description": "Whether store is currently accepting orders" },
+        "activeBannerAnnouncement": { "type": "string", "description": "Top announcement text" },
+        "estimatedPrepTimeMin": { "type": "number", "description": "Minimum prep time in minutes" },
+        "estimatedPrepTimeMax": { "type": "number", "description": "Maximum prep time in minutes" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

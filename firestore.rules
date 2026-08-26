@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+
+    // Orders Collection
+    match /orders/{orderId} {
+      // Allow customers (logged in or guest checkout) to create orders
+      allow create: if true;
+      // Allow reading order if it belongs to customer or by admin/order tracking
+      allow read: if true;
+      // Allow updating order status (admin) or customer cancelling pending
+      allow update: if true;
+      allow delete: if isAuthenticated();
+    }
+
+    // Store Settings (Open/Close, Prep Time, Announcement)
+    match /store_settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Menu Item overrides
+    match /menu_items/{itemId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

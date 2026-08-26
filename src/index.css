@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #08080c;
+    color: #f3f4f6;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* Neon glow & brand utility styles */
+@keyframes neonPulseGlow {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 8px 24px rgba(240, 70, 245, 0.25)) drop-shadow(0 0 16px rgba(0, 255, 102, 0.15));
+  }
+  50% {
+    transform: scale(1.035);
+    filter: drop-shadow(0 14px 40px rgba(240, 70, 245, 0.45)) drop-shadow(0 0 28px rgba(0, 255, 102, 0.35));
+  }
+}
+
+.animate-pulse-smooth {
+  animation: neonPulseGlow 3.6s ease-in-out infinite;
+}
+.neon-glow-pink {
+  box-shadow: 0 0 16px rgba(240, 70, 245, 0.35), 0 0 35px rgba(240, 70, 245, 0.15);
+}
+
+.neon-glow-green {
+  box-shadow: 0 0 16px rgba(0, 255, 102, 0.35), 0 0 35px rgba(0, 255, 102, 0.15);
+}
+
+.neon-glow-yellow {
+  box-shadow: 0 0 16px rgba(255, 234, 0, 0.35), 0 0 35px rgba(255, 234, 0, 0.15);
+}
+
+.neon-text-pink {
+  color: #ff3df7;
+  text-shadow: 0 0 10px rgba(255, 61, 247, 0.7), 0 0 20px rgba(255, 61, 247, 0.35);
+}
+
+.neon-text-green {
+  color: #00ff66;
+  text-shadow: 0 0 10px rgba(0, 255, 102, 0.7), 0 0 20px rgba(0, 255, 102, 0.35);
+}
+
+.neon-text-yellow {
+  color: #ffea00;
+  text-shadow: 0 0 10px rgba(255, 234, 0, 0.7), 0 0 20px rgba(255, 234, 0, 0.35);
+}
+
+.neon-border-pink {
+  border-color: #f046f5;
+  box-shadow: 0 0 14px rgba(240, 70, 245, 0.3);
+}
+
+.neon-border-green {
+  border-color: #00ff66;
+  box-shadow: 0 0 14px rgba(0, 255, 102, 0.3);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f1017;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2c3d;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00ff66;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
