@@ -4,6 +4,8 @@ import {
   db, 
   googleProvider, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   fbSignOut, 
@@ -140,6 +142,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    // Check if user is returning from a redirect sign-in flow
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result && result.user) {
+          await syncUserProfile(result.user);
+        }
+      })
+      .catch((err) => {
+        console.warn('Redirect sign-in check notification:', err);
+      });
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
@@ -153,7 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  // Google Sign-In (Popup)
+  // Google Sign-In
   const signInWithGoogle = async () => {
     setIsLoading(true);
     try {
@@ -164,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthModalOpen(false);
     } catch (err: any) {
       console.error('Google Sign In Error:', err);
+      // If blocked by popup blocker or iframe sandboxing, allow caller to inspect or fallback
       throw err;
     } finally {
       setIsLoading(false);
