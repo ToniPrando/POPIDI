@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { formatBRL, formatDateTime, getPaymentMethodLabel } from '../utils/formatters';
+import { formatBRL, formatDateTime, getPaymentMethodLabel, openWhatsAppReadyMessage } from '../utils/formatters';
 import { 
   X, 
   ShieldCheck, 
@@ -321,13 +321,21 @@ export const AdminDashboard: React.FC = () => {
     setIsAdminOpen(false);
   };
 
-  const handleOpenWhatsAppCustomer = (order: Order) => {
+  const handleOpenWhatsAppCustomer = (order: Order, customMessage?: string) => {
     const cleanPhone = order.customer.phone.replace(/\D/g, '');
     const phoneWithDDI = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
-    const msg = encodeURIComponent(
-      `Olá ${order.customer.name}! Aqui é da equipe PO-PI-DI Hamburgueria & Choperia referente ao seu pedido #${order.shortCode}.`
-    );
+    const defaultText = order.status === 'ready' || order.status === 'out_for_delivery'
+      ? `Olá ${order.customer.name}! Seu Pedido está Pronto!`
+      : `Olá ${order.customer.name}! Aqui é da equipe PO-PI-DI Hamburgueria & Choperia referente ao seu pedido #${order.shortCode}.`;
+    const msg = encodeURIComponent(customMessage || defaultText);
     window.open(`https://wa.me/${phoneWithDDI}?text=${msg}`, '_blank');
+  };
+
+  const handleMarkAsReady = (order: Order) => {
+    const nextStatus = order.orderType === 'delivery' ? 'out_for_delivery' : 'ready';
+    updateOrderStatus(order.id, nextStatus);
+    // Notify customer via WhatsApp
+    openWhatsAppReadyMessage(order);
   };
 
   // Helper render for an individual Order Card
@@ -518,12 +526,13 @@ export const AdminDashboard: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => updateOrderStatus(order.id, order.orderType === 'delivery' ? 'out_for_delivery' : 'ready')}
+                onClick={() => handleMarkAsReady(order)}
                 className={`py-2 px-1 rounded-xl font-black text-[11px] transition-all flex items-center justify-center gap-1 cursor-pointer ${
                   order.status === 'out_for_delivery' || order.status === 'ready'
                     ? 'bg-blue-500 text-black shadow-md shadow-blue-500/20 scale-[1.02]'
                     : 'bg-zinc-900 text-blue-400 hover:bg-blue-600 hover:text-black border border-zinc-800'
                 }`}
+                title={order.orderType === 'delivery' ? 'Despachar para entrega e avisar cliente' : 'Marcar como pronto e avisar cliente no WhatsApp'}
               >
                 {order.orderType === 'delivery' ? <Bike className="w-3.5 h-3.5" /> : <Store className="w-3.5 h-3.5" />}
                 <span>{order.orderType === 'delivery' ? 'Despachar' : 'Pronto'}</span>
@@ -539,7 +548,20 @@ export const AdminDashboard: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex justify-end pt-1">
+            {/* Quick Notify WhatsApp Button: "Seu Pedido está Pronto!" */}
+            {(order.status === 'ready' || order.status === 'out_for_delivery' || order.status === 'preparing') && (
+              <button
+                type="button"
+                onClick={() => openWhatsAppReadyMessage(order)}
+                className="w-full py-1.5 px-2 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 font-black text-[11px] rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                title="Avisar cliente via WhatsApp que o pedido está pronto"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Avisar WhatsApp: "Seu Pedido está Pronto!"</span>
+              </button>
+            )}
+
+            <div className="flex justify-end pt-0.5">
               <button
                 type="button"
                 onClick={() => {

@@ -161,6 +161,25 @@ export const OrderTrackerModal: React.FC = () => {
         {/* Content */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
           
+          {/* READY STATUS BANNER */}
+          {(activeOrder.status === 'ready' || activeOrder.status === 'out_for_delivery') && (
+            <div className="p-4 bg-gradient-to-r from-emerald-950/80 via-emerald-900/60 to-emerald-950/80 border-2 border-emerald-500/70 rounded-2xl flex items-center gap-3.5 shadow-lg shadow-emerald-950/40 animate-pulse">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500 text-black flex items-center justify-center font-black shrink-0 shadow-md">
+                <CheckCircle2 className="w-7 h-7 stroke-[2.5]" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-base sm:text-lg font-black text-emerald-300 uppercase tracking-tight">
+                  🎉 Seu Pedido está Pronto!
+                </h4>
+                <p className="text-xs text-emerald-100/90 font-medium mt-0.5">
+                  {activeOrder.orderType === 'delivery' 
+                    ? 'Seu pedido já saiu quentinho da cozinha e está a caminho com o nosso motoboy!' 
+                    : 'Seu lanche já está prontinho e quentinho no balcão da hamburgueria! Pode retirar!'}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Estimated Time Card */}
           <div className="p-4 bg-zinc-900/90 rounded-xl border border-zinc-800 flex items-center justify-between">
             <div className="space-y-0.5">

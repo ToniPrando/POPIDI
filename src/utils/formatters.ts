@@ -212,3 +212,14 @@ export function openWhatsAppOrder(order: Order, settings: StoreSettings) {
   const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`;
   window.open(url, '_blank');
 }
+
+export function openWhatsAppReadyMessage(order: Order) {
+  const cleanPhone = (order.customerPhone || order.customer?.phone || '').replace(/\D/g, '');
+  if (!cleanPhone) return;
+  const phoneWithDDI = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
+  const customerName = order.customer?.name || 'Cliente';
+  const message = `Olá ${customerName}! Seu Pedido está Pronto! 🍔🍟✨ (Pedido #${order.shortCode})`;
+  const encoded = encodeURIComponent(message);
+  const url = `https://api.whatsapp.com/send?phone=${phoneWithDDI}&text=${encoded}`;
+  window.open(url, '_blank');
+}

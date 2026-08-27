@@ -27,7 +27,8 @@ import {
   MapPin,
   Search,
   Loader2,
-  Building2
+  Building2,
+  UtensilsCrossed
 } from 'lucide-react';
 import { PaymentMethod, OrderType } from '../types';
 
@@ -64,6 +65,16 @@ export const CartDrawer: React.FC = () => {
     storeSettings,
     triggerStoreClosedNotice,
   } = useCart();
+
+  const handleContinueShopping = () => {
+    setIsCartOpen(false);
+    setTimeout(() => {
+      const cardapioElem = document.getElementById('cardapio') || document.getElementById('menu');
+      if (cardapioElem) {
+        cardapioElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
 
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'details' | 'payment'>('cart');
   const [couponInput, setCouponInput] = useState('');
@@ -394,8 +405,8 @@ export const CartDrawer: React.FC = () => {
                   Adicione nossos deliciosos smash burgers artesanais ou o famoso X-Tudo para continuar!
                 </p>
                 <button
-                  onClick={() => setIsCartOpen(false)}
-                  className="bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs px-5 py-2.5 rounded-xl shadow transition-colors"
+                  onClick={handleContinueShopping}
+                  className="bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs px-5 py-2.5 rounded-xl shadow transition-colors cursor-pointer"
                 >
                   Ver Cardápio
                 </button>
@@ -542,11 +553,24 @@ export const CartDrawer: React.FC = () => {
                       ))}
                     </div>
 
+                    {/* Continue Shopping / Add More Products Link Button */}
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        id="btn-continue-shopping-cart-view"
+                        onClick={handleContinueShopping}
+                        className="w-full py-2.5 px-4 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 hover:text-amber-200 font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:scale-[1.01] active:scale-98"
+                      >
+                        <UtensilsCrossed className="w-4 h-4 text-amber-400" />
+                        <span>Continuar Comprando (Adicionar mais itens)</span>
+                      </button>
+                    </div>
+
                     {/* Clear Cart Button */}
-                    <div className="flex justify-end pt-1">
+                    <div className="flex justify-end pt-0.5">
                       <button
                         onClick={clearCart}
-                        className="text-[11px] text-zinc-500 hover:text-red-400 flex items-center gap-1"
+                        className="text-[11px] text-zinc-500 hover:text-red-400 flex items-center gap-1 cursor-pointer transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         Limpar carrinho
@@ -1160,6 +1184,20 @@ export const CartDrawer: React.FC = () => {
                   </button>
                 ) : (
                   <>
+                    {checkoutStep === 'cart' && (
+                      <button
+                        type="button"
+                        id="btn-continue-shopping-footer"
+                        onClick={handleContinueShopping}
+                        className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold text-xs px-3.5 py-3.5 rounded-xl border border-zinc-800 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm"
+                        title="Continuar Comprando no Cardápio"
+                      >
+                        <UtensilsCrossed className="w-4 h-4 text-amber-400" />
+                        <span className="hidden sm:inline">Continuar</span>
+                        <span>Comprando</span>
+                      </button>
+                    )}
+
                     {checkoutStep !== 'cart' && (
                       <button
                         onClick={() => {
