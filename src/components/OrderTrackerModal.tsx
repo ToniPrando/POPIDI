@@ -257,7 +257,7 @@ export const OrderTrackerModal: React.FC = () => {
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {(activeOrder.items || []).map((it, i) => (
                 <div key={i} className="flex justify-between text-zinc-300">
-                  <span>{it?.quantity || 1}x {it?.menuItem?.name || it?.name || 'Item'}</span>
+                  <span>{it?.quantity || 1}x {it?.menuItem?.name || (it as any)?.name || 'Item'}</span>
                   <span className="font-medium">{formatBRL(it?.totalPrice || 0)}</span>
                 </div>
               ))}

@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 
 export const AboutSection: React.FC = () => {
-  const { storeSettings, setSelectedProductForModal, menuItems } = useCart();
+  const { storeSettings, setSelectedProductForModal, menuItems, triggerStoreClosedNotice } = useCart();
   const [copiedAddress, setCopiedAddress] = useState(false);
 
   const handleCopyAddress = () => {
@@ -35,6 +35,10 @@ export const AboutSection: React.FC = () => {
   };
 
   const handleOpenXtudo = () => {
+    if (storeSettings.isOpen === false) {
+      triggerStoreClosedNotice();
+      return;
+    }
     const xtudoItem = menuItems.find(i => i.id === 'xtudo-especial');
     if (xtudoItem) {
       setSelectedProductForModal(xtudoItem);

@@ -173,25 +173,39 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
               )}
             </div>
 
-            <button
-              id={`btn-compact-add-${item.id}`}
-              onClick={(e) => handleQuickAdd(e, item)}
-              disabled={!item.available}
-              className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-[11px] sm:text-xs px-3 py-1.5 rounded-lg border border-emerald-300 shadow-[0_0_10px_rgba(0,255,102,0.3)] hover:scale-105 transition-all duration-200 shrink-0"
-              title={hasCustomization ? 'Personalizar e Comprar' : 'Comprar e Adicionar'}
-            >
-              {hasCustomization ? (
-                <>
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  <span>Montar</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingBag className="w-3.5 h-3.5" />
-                  <span>Comprar</span>
-                </>
-              )}
-            </button>
+            {isClosed ? (
+              <button
+                id={`btn-compact-closed-${item.id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerStoreClosedNotice();
+                }}
+                className="flex items-center gap-1 bg-red-600/90 hover:bg-red-500 text-white font-black text-[10px] sm:text-[11px] px-2.5 py-1.5 rounded-lg border border-red-500/80 shadow-[0_0_10px_rgba(239,68,68,0.3)] hover:scale-105 transition-all duration-200 shrink-0 cursor-pointer"
+                title="Estabelecimento Fechado no Momento"
+              >
+                <span>Fechado</span>
+              </button>
+            ) : (
+              <button
+                id={`btn-compact-add-${item.id}`}
+                onClick={(e) => handleQuickAdd(e, item)}
+                disabled={!item.available}
+                className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-[11px] sm:text-xs px-3 py-1.5 rounded-lg border border-emerald-300 shadow-[0_0_10px_rgba(0,255,102,0.3)] hover:scale-105 transition-all duration-200 shrink-0 cursor-pointer"
+                title={hasCustomization ? 'Personalizar e Comprar' : 'Comprar e Adicionar'}
+              >
+                {hasCustomization ? (
+                  <>
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>Montar</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>Comprar</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
         </div>

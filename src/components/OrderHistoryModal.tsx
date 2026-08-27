@@ -47,33 +47,41 @@ export const OrderHistoryModal: React.FC = () => {
 
   // Filter orders for the logged-in user or profile, or show recent device orders as fallback
   const userOrders = useMemo(() => {
-    const allOrders = Array.isArray(orders) ? orders : [];
-    if (!user && !profile) {
-      const currentPhone = (customerInfo?.phone || '').replace(/\D/g, '');
-      const currentEmail = (customerInfo?.email || '').toLowerCase().trim();
-      if (currentPhone || currentEmail) {
-        return allOrders.filter(order => {
-          if (!order) return false;
-          const phone = (order.customerPhone || order.customer?.phone || '').replace(/\D/g, '');
-          const email = (order.customerEmail || order.customer?.email || order.userEmail || '').toLowerCase().trim();
-          return (currentPhone && phone === currentPhone) || (currentEmail && email === currentEmail);
-        });
+    try {
+      const allOrders = Array.isArray(orders) ? orders.filter(Boolean) : [];
+      if (!user && !profile) {
+        const currentPhone = String(customerInfo?.phone || '').replace(/\D/g, '');
+        const currentEmail = String(customerInfo?.email || '').toLowerCase().trim();
+        if (currentPhone || currentEmail) {
+          return allOrders.filter(order => {
+            if (!order) return false;
+            const phone = String(order.customerPhone || order.customer?.phone || '').replace(/\D/g, '');
+            const email = String(order.customerEmail || order.customer?.email || order.userEmail || '').toLowerCase().trim();
+            return (currentPhone && phone && phone === currentPhone) || (currentEmail && email && email === currentEmail);
+          });
+        }
+        return allOrders.slice(0, 10);
       }
-      return allOrders.slice(0, 10);
-    }
 
-    return allOrders.filter(order => {
-      if (!order) return false;
-      const email = order.userEmail || order.customerEmail || order.customer?.email;
-      const targetEmail = user?.email || profile?.email;
-      const matchesEmail = Boolean(targetEmail && email && String(email).toLowerCase() === String(targetEmail).toLowerCase());
-      const targetUid = user?.uid || profile?.uid;
-      const matchesUid = Boolean(targetUid && order.userId && order.userId === targetUid);
-      const phone = (order.customerPhone || order.customer?.phone || '').replace(/\D/g, '');
-      const targetPhone = profile?.phone ? profile.phone.replace(/\D/g, '') : '';
-      const matchesPhone = Boolean(targetPhone && phone && phone === targetPhone);
-      return matchesEmail || matchesUid || matchesPhone;
-    });
+      return allOrders.filter(order => {
+        if (!order) return false;
+        const email = String(order.userEmail || order.customerEmail || order.customer?.email || '').toLowerCase().trim();
+        const targetEmail = String(user?.email || profile?.email || '').toLowerCase().trim();
+        const matchesEmail = Boolean(targetEmail && email && email === targetEmail);
+
+        const targetUid = user?.uid || profile?.uid;
+        const matchesUid = Boolean(targetUid && order.userId && String(order.userId) === String(targetUid));
+
+        const phone = String(order.customerPhone || order.customer?.phone || '').replace(/\D/g, '');
+        const targetPhone = String(profile?.phone || '').replace(/\D/g, '');
+        const matchesPhone = Boolean(targetPhone && phone && phone === targetPhone);
+
+        return matchesEmail || matchesUid || matchesPhone;
+      });
+    } catch (e) {
+      console.error('Error filtering user orders:', e);
+      return [];
+    }
   }, [orders, user, profile, customerInfo]);
 
   const handleTrackOrder = (order: Order) => {
@@ -286,7 +294,7 @@ export const OrderHistoryModal: React.FC = () => {
                   {/* Items summary */}
                   <div className="text-xs text-zinc-300 space-y-1">
                     {safeItems.map((it, idx) => {
-                      const itemName = it?.menuItem?.name || it?.name || 'Item';
+                      const itemName = it?.menuItem?.name || (it as any)?.name || 'Item';
                       const itemQuantity = it?.quantity || 1;
                       const itemPrice = it?.totalPrice || 0;
                       return (

@@ -1249,6 +1249,53 @@ export const AdminDashboard: React.FC = () => {
           {/* TAB 3: SETTINGS & ANNOUNCEMENTS */}
           {activeTab === 'settings' && (
             <div className="max-w-2xl mx-auto space-y-4 text-left">
+              {/* Store Open/Closed Big Control Box */}
+              <div className={`p-5 rounded-2xl border transition-all ${
+                storeSettings.isOpen 
+                  ? 'bg-emerald-950/20 border-emerald-500/40 shadow-[0_0_20px_rgba(0,255,102,0.1)]' 
+                  : 'bg-red-950/30 border-red-500/60 shadow-[0_0_25px_rgba(239,68,68,0.2)]'
+              }`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-3 h-3 rounded-full ${
+                        storeSettings.isOpen ? 'bg-emerald-400 animate-ping' : 'bg-red-500'
+                      }`} />
+                      <h4 className="text-base font-black text-white">
+                        Status da Loja: {storeSettings.isOpen ? 'ABERTO PARA PEDIDOS' : 'FECHADO NO MOMENTO'}
+                      </h4>
+                    </div>
+                    <p className="text-xs text-zinc-300">
+                      {storeSettings.isOpen 
+                        ? 'Os clientes podem adicionar itens ao carrinho e finalizar pedidos normalmente.'
+                        : 'Bloqueia novos pedidos de clientes. Ao clicar nos produtos, o cliente verá o aviso "Estabelecimento Fechado!".'}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => updateStoreSettings({ isOpen: !storeSettings.isOpen })}
+                    className={`px-5 py-3 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${
+                      storeSettings.isOpen
+                        ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-950/50'
+                        : 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-950/50'
+                    }`}
+                  >
+                    {storeSettings.isOpen ? (
+                      <>
+                        <ToggleLeft className="w-5 h-5" />
+                        <span>Fechar Loja Agora</span>
+                      </>
+                    ) : (
+                      <>
+                        <ToggleRight className="w-5 h-5" />
+                        <span>Abrir Loja Agora</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
               <div className="bg-zinc-950 p-5 rounded-2xl border border-zinc-800 space-y-4">
                 <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-zinc-800 pb-2">
                   Configurações Operacionais
