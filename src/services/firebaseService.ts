@@ -306,13 +306,20 @@ export async function findOrderInFirestore(term: string): Promise<Order | null> 
 /**
  * Subscribes to store settings (Opening hours, prep time, delivery fee, admin PIN).
  */
-export function subscribeToStoreSettings(onUpdate: (settings: StoreSettings) => void): Unsubscribe {
+export function subscribeToStoreSettings(onUpdate: (settings: StoreSettings) => void, onError?: (err: Error) => void): Unsubscribe {
   const docRef = doc(db, 'store_settings', 'main_config');
-  return onSnapshot(docRef, (docSnap) => {
-    if (docSnap.exists()) {
-      onUpdate(docSnap.data() as StoreSettings);
+  return onSnapshot(
+    docRef, 
+    (docSnap) => {
+      if (docSnap.exists()) {
+        onUpdate(docSnap.data() as StoreSettings);
+      }
+    },
+    (error) => {
+      console.warn('Firestore subscribeToStoreSettings offline/network notice:', error);
+      if (onError) onError(error);
     }
-  });
+  );
 }
 
 /**

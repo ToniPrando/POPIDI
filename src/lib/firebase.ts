@@ -15,6 +15,7 @@ import {
 } from 'firebase/auth';
 import { 
   getFirestore, 
+  initializeFirestore,
   doc, 
   setDoc, 
   getDoc, 
@@ -25,10 +26,10 @@ import {
   query, 
   orderBy, 
   where, 
-  limit,
-  getDocs,
-  serverTimestamp,
-  Timestamp
+  limit, 
+  getDocs, 
+  serverTimestamp, 
+  Timestamp 
 } from 'firebase/firestore';
 import firebaseConfigJson from '../../firebase-applet-config.json';
 
@@ -57,10 +58,21 @@ googleProvider.setCustomParameters({
 });
 
 // Firestore Instance
-// Connect to specific database if databaseId exists
-export const db = firebaseConfigJson.firestoreDatabaseId && firebaseConfigJson.firestoreDatabaseId !== '(default)'
-  ? getFirestore(app, firebaseConfigJson.firestoreDatabaseId)
-  : getFirestore(app);
+// Connect to specific database with auto long-polling detection for robust connectivity in iframes/web sandboxes
+const targetDbId = firebaseConfigJson.firestoreDatabaseId && firebaseConfigJson.firestoreDatabaseId !== '(default)'
+  ? firebaseConfigJson.firestoreDatabaseId
+  : undefined;
+
+let firestoreInstance;
+try {
+  firestoreInstance = targetDbId
+    ? initializeFirestore(app, { experimentalAutoDetectLongPolling: true }, targetDbId)
+    : initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+} catch (e) {
+  firestoreInstance = targetDbId ? getFirestore(app, targetDbId) : getFirestore(app);
+}
+
+export const db = firestoreInstance;
 
 export {
   signInWithPopup,

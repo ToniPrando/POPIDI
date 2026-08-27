@@ -28,10 +28,11 @@ export const AuthModal: React.FC = () => {
     setIsAuthModalOpen,
     authModalTab,
     setAuthModalTab,
+    authNoticeMessage,
+    setAuthNoticeMessage,
     signInWithGoogle,
     loginWithEmail,
     registerWithEmail,
-    registerWithPhoneOrGuest,
     resetPassword,
     user,
     profile,
@@ -40,7 +41,6 @@ export const AuthModal: React.FC = () => {
 
   const { setIsLoyaltyOpen } = useCart();
 
-  const [registerMethod, setRegisterMethod] = useState<'phone' | 'email'>('phone');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -64,6 +64,7 @@ export const AuthModal: React.FC = () => {
     setErrorMsg('');
     setSuccessMsg('');
     setIsForgotPass(false);
+    if (setAuthNoticeMessage) setAuthNoticeMessage(null);
   };
 
   const handleClose = () => {
@@ -71,14 +72,13 @@ export const AuthModal: React.FC = () => {
     setIsAuthModalOpen(false);
   };
 
-  // Format Brazilian phone mask on typing: (XX) XXXXX-XXXX or (XX) XXXX-XXXX
+  // Format Brazilian phone mask on typing: (XX)XXXXX-XXXX
   const formatPhoneMask = (raw: string): string => {
     const digits = raw.replace(/\D/g, '').slice(0, 11);
     if (!digits) return '';
     if (digits.length <= 2) return `(${digits}`;
-    if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-    if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+    if (digits.length <= 7) return `(${digits.slice(0, 2)})${digits.slice(2)}`;
+    return `(${digits.slice(0, 2)})${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,46 +186,19 @@ export const AuthModal: React.FC = () => {
         return;
       }
 
-      // Method A: Fast WhatsApp / Phone Registration (No complex password needed!)
-      if (registerMethod === 'phone') {
-        const cleanDigits = phone.replace(/\D/g, '');
-        if (cleanDigits.length < 10) {
-          setErrorMsg('Informe seu WhatsApp com DDD (mínimo 10 números, ex: (15) 99707-5641).');
-          return;
-        }
-
-        setIsSubmitting(true);
-        try {
-          await registerWithPhoneOrGuest(name.trim(), cleanDigits, email.trim());
-          confetti({
-            particleCount: 60,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#00ff66', '#f59e0b', '#ffffff'],
-          });
-          handleClose();
-        } catch (err: any) {
-          setErrorMsg(err?.message || 'Erro ao cadastrar cliente. Tente novamente.');
-        } finally {
-          setIsSubmitting(false);
-        }
+      const cleanDigits = phone.replace(/\D/g, '');
+      if (cleanDigits.length < 10) {
+        setErrorMsg('Informe seu WhatsApp com DDD no formato (XX)XXXXX-XXXX.');
         return;
       }
 
-      // Method B: Email & Password Registration
       if (!isValidEmail(email)) {
-        setErrorMsg('Informe um endereço de e-mail válido (ex: joao@email.com).');
+        setErrorMsg('Informe um endereço de e-mail válido (ex: seuemail@exemplo.com).');
         return;
       }
 
       if (password.length < 6) {
         setErrorMsg('A senha deve conter no mínimo 6 caracteres.');
-        return;
-      }
-
-      const cleanDigits = phone.replace(/\D/g, '');
-      if (cleanDigits && cleanDigits.length < 10) {
-        setErrorMsg('O telefone WhatsApp deve conter DDD (ex: 15997075641).');
         return;
       }
 
@@ -243,7 +216,7 @@ export const AuthModal: React.FC = () => {
         if (err.code === 'auth/email-already-in-use') {
           setErrorMsg('Este e-mail já está cadastrado. Clique na aba "Já sou Cliente (Login)" ou recupere sua senha.');
         } else if (err.code === 'auth/weak-password') {
-          setErrorMsg('A senha escolhida é fraca. Utilize ao menos 6 dígitos com letras e números.');
+          setErrorMsg('A senha escolhida é fraca. Utilize ao menos 6 dígitos.');
         } else if (err.code === 'auth/invalid-email') {
           setErrorMsg('Formato de e-mail inválido.');
         } else {
@@ -379,6 +352,14 @@ export const AuthModal: React.FC = () => {
             </div>
           ) : (
             <>
+              {/* Notice Banner (e.g. "Você precisa estar logado para pedir!") */}
+              {authNoticeMessage && (
+                <div className="p-3 bg-amber-500/15 border border-amber-500/50 rounded-2xl flex items-center gap-2.5 text-xs text-amber-300 font-bold animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+                  <span>{authNoticeMessage}</span>
+                </div>
+              )}
+
               {/* Tab Selector (Login vs Cadastro) */}
               {!isForgotPass && (
                 <div className="flex bg-zinc-950 p-1 rounded-2xl border border-zinc-800">
@@ -409,36 +390,6 @@ export const AuthModal: React.FC = () => {
                     }`}
                   >
                     Criar Nova Conta ✨
-                  </button>
-                </div>
-              )}
-
-              {/* Sub-selector for Register: Fast WhatsApp vs Email */}
-              {authModalTab === 'register' && !isForgotPass && (
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRegisterMethod('phone')}
-                    className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                      registerMethod === 'phone'
-                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <Zap className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Rápido pelo WhatsApp</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRegisterMethod('email')}
-                    className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                      registerMethod === 'email'
-                        ? 'bg-fuchsia-500/20 border-fuchsia-500 text-fuchsia-300'
-                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <Mail className="w-3.5 h-3.5 text-fuchsia-400" />
-                    <span>Com E-mail e Senha</span>
                   </button>
                 </div>
               )}
@@ -536,53 +487,49 @@ export const AuthModal: React.FC = () => {
                           required
                           value={phone}
                           onChange={handlePhoneChange}
-                          placeholder="(15) 99707-5641"
+                          placeholder="(XX)XXXXX-XXXX"
                           className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-mono font-bold"
                         />
                       </div>
-                      <p className="text-[10px] text-zinc-500 mt-1">Usado para receber atualizações do seu pedido via WhatsApp.</p>
+                      <p className="text-[10px] text-zinc-500 mt-1">Exemplo: (XX)XXXXX-XXXX</p>
                     </div>
 
-                    {registerMethod === 'email' && (
-                      <>
-                        <div>
-                          <label className="text-xs font-bold text-zinc-300 block mb-1">E-mail *</label>
-                          <div className="relative">
-                            <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
-                            <input
-                              type="email"
-                              required
-                              value={email}
-                              onChange={e => setEmail(e.target.value)}
-                              placeholder="seuemail@exemplo.com"
-                              className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
-                            />
-                          </div>
-                        </div>
+                    <div>
+                      <label className="text-xs font-bold text-zinc-300 block mb-1">E-mail *</label>
+                      <div className="relative">
+                        <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
+                        <input
+                          type="email"
+                          required
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          placeholder="seuemail@exemplo.com"
+                          className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
 
-                        <div>
-                          <label className="text-xs font-bold text-zinc-300 block mb-1">Crie uma Senha (mín. 6 dígitos) *</label>
-                          <div className="relative">
-                            <Lock className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
-                            <input
-                              type={showPassword ? 'text' : 'password'}
-                              required
-                              value={password}
-                              onChange={e => setPassword(e.target.value)}
-                              placeholder="Digite sua senha"
-                              className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-3.5 top-3 text-zinc-500 hover:text-zinc-300 cursor-pointer"
-                            >
-                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
+                    <div>
+                      <label className="text-xs font-bold text-zinc-300 block mb-1">Crie uma Senha (mín. 6 dígitos) *</label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-zinc-500 absolute left-3.5 top-3.5" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                          placeholder="Crie sua senha de acesso"
+                          className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3.5 top-3 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
                   </>
                 )}
 
@@ -598,7 +545,7 @@ export const AuthModal: React.FC = () => {
                           required
                           value={email}
                           onChange={e => setEmail(e.target.value)}
-                          placeholder="seuemail@exemplo.com ou (15) 99707-5641"
+                          placeholder="seuemail@exemplo.com ou (XX)XXXXX-XXXX"
                           className="w-full bg-zinc-900/90 border border-zinc-800 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
                         />
                       </div>
@@ -667,7 +614,7 @@ export const AuthModal: React.FC = () => {
                   {isSubmitting ? (
                     <div className="flex items-center gap-2">
                       <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                      <span>Cadastrando...</span>
+                      <span>Processando...</span>
                     </div>
                   ) : isForgotPass ? (
                     <span>Enviar Link de Recuperação</span>
@@ -678,7 +625,7 @@ export const AuthModal: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <span>{registerMethod === 'phone' ? 'Criar Conta com WhatsApp' : 'Finalizar Cadastro'}</span>
+                      <span>Criar Minha Conta (Ganhe 50 Pts)</span>
                       <Sparkles className="w-4 h-4" />
                     </>
                   )}

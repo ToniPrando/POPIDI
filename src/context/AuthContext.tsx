@@ -34,6 +34,9 @@ interface AuthContextType {
   setIsAuthModalOpen: (open: boolean) => void;
   authModalTab: 'login' | 'register';
   setAuthModalTab: (tab: 'login' | 'register') => void;
+  authNoticeMessage: string | null;
+  setAuthNoticeMessage: (msg: string | null) => void;
+  triggerAuthNotice: (customMsg?: string) => void;
   isAdminLoginOpen: boolean;
   setIsAdminLoginOpen: (open: boolean) => void;
   signInWithGoogle: () => Promise<void>;
@@ -90,7 +93,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+  const [authNoticeMessage, setAuthNoticeMessage] = useState<string | null>(null);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
+
+  const triggerAuthNotice = (customMsg?: string) => {
+    setAuthNoticeMessage(customMsg || 'Você precisa estar logado para pedir!');
+    setAuthModalTab('login');
+    setIsAuthModalOpen(true);
+  };
 
   // Sync profile from Firestore or create initial doc
   const syncUserProfile = async (firebaseUser: User) => {
@@ -493,6 +503,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAuthModalOpen,
         authModalTab,
         setAuthModalTab,
+        authNoticeMessage,
+        setAuthNoticeMessage,
+        triggerAuthNotice,
         isAdminLoginOpen,
         setIsAdminLoginOpen,
         signInWithGoogle,

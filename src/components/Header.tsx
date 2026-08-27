@@ -179,21 +179,8 @@ export const Header: React.FC = () => {
           {/* Right Action Controls: Customer Login & Cart */}
           <div className="flex items-center gap-2 sm:gap-2.5">
             
-            {/* Admin KDS Quick Access Pill (if Admin authenticated) */}
-            {isAdmin && (
-              <button
-                id="btn-admin-kds-header-pill"
-                onClick={() => setIsAdminOpen(true)}
-                className="hidden lg:flex items-center gap-1.5 bg-yellow-500/15 hover:bg-yellow-500/25 text-yellow-400 border border-yellow-500/40 px-3 py-2 rounded-xl text-xs font-black transition-all shadow-[0_0_12px_rgba(234,179,8,0.2)] cursor-pointer"
-                title="Painel do Administrador & KDS Aberto"
-              >
-                <ShieldCheck className="w-4 h-4 text-yellow-400" />
-                <span>Painel KDS / ADM</span>
-              </button>
-            )}
-
-            {/* Active Order Tracker Pill */}
-            {activeOrder && activeOrder.status !== 'completed' && activeOrder.status !== 'cancelled' && (
+            {/* Active Order Tracker Pill - Only shown when user is connected */}
+            {(user || profile) && activeOrder && activeOrder.status !== 'completed' && activeOrder.status !== 'cancelled' && (
               <button
                 id="btn-active-order-tracker"
                 onClick={() => setIsOrderTrackerOpen(true)}
@@ -459,32 +446,6 @@ export const Header: React.FC = () => {
               Ver Prêmios
             </span>
           </button>
-
-          {/* Admin KDS Quick Access in Mobile (if Admin authenticated) */}
-          {isAdmin && (
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setIsAdminOpen(true);
-              }}
-              className="w-full flex items-center justify-between p-3 bg-zinc-900 border border-yellow-500/30 rounded-2xl text-xs font-bold text-yellow-400 hover:bg-zinc-850 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-black border border-yellow-500/30">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div className="text-left">
-                  <div className="text-white font-black text-xs">Painel do Gerente / Cozinha (KDS)</div>
-                  <div className="text-[10px] text-zinc-400">
-                    Autenticado • Toque para abrir
-                  </div>
-                </div>
-              </div>
-              <span className="text-[10px] font-black bg-zinc-800 text-yellow-400 px-2.5 py-1 rounded-lg border border-zinc-700">
-                Abrir
-              </span>
-            </button>
-          )}
         </div>
       )}
     </header>

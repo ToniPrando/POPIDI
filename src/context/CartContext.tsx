@@ -662,6 +662,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveOrder(newOrder);
     try {
       localStorage.setItem(LOCAL_STORAGE_ACTIVE_ORDER_ID_KEY, newOrder.id);
+      const existingIds = JSON.parse(localStorage.getItem('popidi_placed_order_ids') || '[]');
+      if (!existingIds.includes(newOrder.id)) {
+        localStorage.setItem('popidi_placed_order_ids', JSON.stringify([newOrder.id, ...existingIds]));
+      }
     } catch (e) {}
     clearCart();
 

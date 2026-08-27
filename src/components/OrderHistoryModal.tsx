@@ -45,38 +45,53 @@ export const OrderHistoryModal: React.FC = () => {
 
   const currentLoyaltyPoints = profile?.loyaltyPoints ?? (user ? 50 : 0);
 
-  // Filter orders for the logged-in user or profile, or show recent device orders as fallback
+  // Filter orders for the logged-in user or profile
   const userOrders = useMemo(() => {
     try {
       const allOrders = Array.isArray(orders) ? orders.filter(Boolean) : [];
       if (!user && !profile) {
-        const currentPhone = String(customerInfo?.phone || '').replace(/\D/g, '');
-        const currentEmail = String(customerInfo?.email || '').toLowerCase().trim();
-        if (currentPhone || currentEmail) {
-          return allOrders.filter(order => {
-            if (!order) return false;
-            const phone = String(order.customerPhone || order.customer?.phone || '').replace(/\D/g, '');
-            const email = String(order.customerEmail || order.customer?.email || order.userEmail || '').toLowerCase().trim();
-            return (currentPhone && phone && phone === currentPhone) || (currentEmail && email && email === currentEmail);
-          });
-        }
-        return allOrders.slice(0, 10);
+        // Disconnected user: do not show open or general orders
+        return [];
+      }
+
+      const targetEmail = String(user?.email || profile?.email || '').toLowerCase().trim();
+      const targetUid = String(user?.uid || profile?.uid || '').trim();
+      const targetPhone = String(profile?.phone || customerInfo?.phone || '').replace(/\D/g, '');
+
+      let localPlacedIds: string[] = [];
+      try {
+        const stored = localStorage.getItem('popidi_placed_order_ids');
+        if (stored) localPlacedIds = JSON.parse(stored);
+      } catch {
+        // ignore
       }
 
       return allOrders.filter(order => {
         if (!order) return false;
+
+        // Check if placed in this session/browser
+        if (order.id && localPlacedIds.includes(order.id)) {
+          return true;
+        }
+
+        // Match by UID
+        if (targetUid && order.userId && String(order.userId).trim() === targetUid) {
+          return true;
+        }
+
+        // Match by Email
         const email = String(order.userEmail || order.customerEmail || order.customer?.email || '').toLowerCase().trim();
-        const targetEmail = String(user?.email || profile?.email || '').toLowerCase().trim();
-        const matchesEmail = Boolean(targetEmail && email && email === targetEmail);
+        if (targetEmail && email && email === targetEmail) {
+          return true;
+        }
 
-        const targetUid = user?.uid || profile?.uid;
-        const matchesUid = Boolean(targetUid && order.userId && String(order.userId) === String(targetUid));
-
+        // Match by Phone
         const phone = String(order.customerPhone || order.customer?.phone || '').replace(/\D/g, '');
-        const targetPhone = String(profile?.phone || '').replace(/\D/g, '');
-        const matchesPhone = Boolean(targetPhone && phone && phone === targetPhone);
+        if (targetPhone && phone && targetPhone.length >= 8 && (phone === targetPhone || phone.endsWith(targetPhone) || targetPhone.endsWith(phone))) {
+          return true;
+        }
 
-        return matchesEmail || matchesUid || matchesPhone;
+        return false;
       });
     } catch (e) {
       console.error('Error filtering user orders:', e);

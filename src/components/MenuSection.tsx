@@ -47,12 +47,16 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
   activeCategory,
 }) => {
   const { addToCart, setIsCartOpen, storeSettings, triggerStoreClosedNotice } = useCart();
-  const { user, setIsAuthModalOpen, setAuthModalTab } = useAuth();
+  const { user, profile, triggerAuthNotice } = useAuth();
   const [viewMode, setViewMode] = useState<'compact' | 'standard'>('compact');
 
   const handleItemClick = (item: MenuItem) => {
     if (storeSettings.isOpen === false) {
       triggerStoreClosedNotice();
+      return;
+    }
+    if (!user && !profile) {
+      triggerAuthNotice('Você precisa estar logado para pedir!');
       return;
     }
     onOpenProductModal(item);
@@ -62,6 +66,10 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
     e.stopPropagation();
     if (storeSettings.isOpen === false) {
       triggerStoreClosedNotice();
+      return;
+    }
+    if (!user && !profile) {
+      triggerAuthNotice('Você precisa estar logado para pedir!');
       return;
     }
     // If item has required customization, open modal instead

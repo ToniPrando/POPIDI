@@ -29,7 +29,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ item: propItem, onCl
     storeSettings,
     triggerStoreClosedNotice
   } = useCart();
-  const { user, setIsAuthModalOpen, setAuthModalTab } = useAuth();
+  const { user, profile, triggerAuthNotice } = useAuth();
 
   const item = propItem !== undefined ? propItem : selectedProductForModal;
   const onClose = propOnClose || (() => setSelectedProductForModal(null));
@@ -138,6 +138,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({ item: propItem, onCl
     if (isStoreClosed) {
       onClose();
       triggerStoreClosedNotice();
+      return;
+    }
+    if (!user && !profile) {
+      onClose();
+      triggerAuthNotice('Você precisa estar logado para pedir!');
       return;
     }
     if (isMissingRequired) return;

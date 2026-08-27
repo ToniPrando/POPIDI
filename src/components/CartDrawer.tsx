@@ -32,7 +32,7 @@ import {
 import { PaymentMethod, OrderType } from '../types';
 
 export const CartDrawer: React.FC = () => {
-  const { profile, user, setIsAuthModalOpen, setAuthModalTab } = useAuth();
+  const { profile, user, triggerAuthNotice, setIsAuthModalOpen, setAuthModalTab } = useAuth();
   const {
     cart,
     isCartOpen,
@@ -235,6 +235,11 @@ export const CartDrawer: React.FC = () => {
       setOrderError('Estabelecimento Fechado! Não estamos aceitando novos pedidos no momento.');
       return;
     }
+    if (!user && !profile) {
+      setIsCartOpen(false);
+      triggerAuthNotice('Você precisa estar logado para pedir!');
+      return;
+    }
     if (checkoutStep === 'cart') {
       setCheckoutStep('details');
     } else if (checkoutStep === 'details') {
@@ -249,6 +254,11 @@ export const CartDrawer: React.FC = () => {
     if (isStoreClosed) {
       triggerStoreClosedNotice();
       setOrderError('Estabelecimento Fechado! Não estamos aceitando novos pedidos no momento.');
+      return;
+    }
+    if (!user && !profile) {
+      setIsCartOpen(false);
+      triggerAuthNotice('Você precisa estar logado para pedir!');
       return;
     }
     if (!validateDetailsStep()) {
@@ -917,34 +927,39 @@ export const CartDrawer: React.FC = () => {
                         {/* PIX details display */}
                         {paymentMethod === 'pix' && (
                           <div className="mt-3 pt-3 border-t border-zinc-800/80 space-y-2">
-                            <div className="p-2.5 bg-zinc-950 rounded-lg border border-zinc-800 flex items-center justify-between text-xs">
-                              <div>
-                                <span className="text-zinc-500 block text-[10px]">Chave PIX (Telefone):</span>
-                                <span className="font-mono font-bold text-amber-400">{storeSettings.pixKey}</span>
+                            {storeSettings.pixKey ? (
+                              <div className="p-2.5 bg-zinc-950 rounded-lg border border-zinc-800 flex items-center justify-between text-xs">
+                                <div>
+                                  <span className="text-zinc-500 block text-[10px]">Chave PIX:</span>
+                                  <span className="font-mono font-bold text-amber-400">{storeSettings.pixKey}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    copyPixKey();
+                                  }}
+                                  className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                                >
+                                  {pixCopied ? (
+                                    <>
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>Copiado!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3.5 h-3.5" />
+                                      <span>Copiar Chave</span>
+                                    </>
+                                  )}
+                                </button>
                               </div>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  copyPixKey();
-                                }}
-                                className="flex items-center gap-1 bg-amber-500 hover:bg-amber-400 text-black px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                              >
-                                {pixCopied ? (
-                                  <>
-                                    <Check className="w-3.5 h-3.5" />
-                                    <span>Copiado!</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy className="w-3.5 h-3.5" />
-                                    <span>Copiar Chave</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
+                            ) : null}
                             <p className="text-[11px] text-zinc-400">
-                              Nome: <strong>{storeSettings.pixReceiverName}</strong> • Envie o comprovante pelo WhatsApp após finalizar.
+                              {storeSettings.pixReceiverName ? (
+                                <>Favorecido: <strong>{storeSettings.pixReceiverName}</strong> • </>
+                              ) : null}
+                              A confirmação e envio do comprovante são feitos diretamente pelo WhatsApp.
                             </p>
                           </div>
                         )}
