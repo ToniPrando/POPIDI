@@ -12,12 +12,13 @@ import {
   Store, 
   MessageSquare, 
   Copy, 
-  Check,
+  Check, 
   Share2, 
   ArrowLeft,
   AlertCircle,
   Smartphone,
-  Cloud
+  Cloud,
+  History
 } from 'lucide-react';
 import { OrderStatus } from '../types';
 
@@ -26,6 +27,7 @@ export const OrderTrackerModal: React.FC = () => {
     activeOrder, 
     isOrderTrackerOpen, 
     setIsOrderTrackerOpen, 
+    setIsOrderHistoryOpen,
     storeSettings,
     updateOrderStatus 
   } = useCart();
@@ -301,18 +303,32 @@ export const OrderTrackerModal: React.FC = () => {
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 bg-zinc-950 border-t border-zinc-800 flex items-center gap-3">
+        <div className="p-4 bg-zinc-950 border-t border-zinc-800 flex flex-col sm:flex-row items-center gap-3">
           <button
+            type="button"
+            onClick={() => {
+              setIsOrderTrackerOpen(false);
+              setIsOrderHistoryOpen(true);
+            }}
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-emerald-400 font-bold text-xs sm:text-sm px-4 py-3 rounded-xl border border-zinc-800 transition-colors cursor-pointer"
+          >
+            <History className="w-4 h-4" />
+            <span>Meus Pedidos</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => openWhatsAppOrder(activeOrder, storeSettings)}
-            className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm py-3 rounded-xl shadow transition-colors cursor-pointer"
+            className="flex-1 w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm py-3 rounded-xl shadow transition-colors cursor-pointer"
           >
             <MessageSquare className="w-4 h-4" />
             <span>Falar no WhatsApp da Hamburgueria</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setIsOrderTrackerOpen(false)}
-            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold text-xs sm:text-sm px-4 py-3 rounded-xl border border-zinc-800 transition-colors cursor-pointer"
+            className="w-full sm:w-auto bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold text-xs sm:text-sm px-4 py-3 rounded-xl border border-zinc-800 transition-colors cursor-pointer"
           >
             Fechar
           </button>

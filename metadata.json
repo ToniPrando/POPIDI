@@ -1,6 +1,6 @@
 {
   "name": "Pó Pi Di Hamburgueria",
-  "description": "Cardápio interativo, carrinho com botão de continuar comprando, notificações no WhatsApp de pedido pronto e painel administrativo para a Pó Pi Di Hamburgueria & Choperia.",
+  "description": "Cardápio interativo, histórico completo de pedidos na área do cliente (Meus Pedidos), carrinho com botão de continuar comprando e notificações no WhatsApp de pedido pronto para a Pó Pi Di Hamburgueria & Choperia.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

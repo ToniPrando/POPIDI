@@ -711,8 +711,27 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const reorder = (order: Order) => {
+    if (!order || !Array.isArray(order.items)) return;
     order.items.forEach(it => {
-      addToCart(it.menuItem, it.quantity, it.customizations, it.notes);
+      if (!it) return;
+      if (it.menuItem) {
+        addToCart(
+          it.menuItem,
+          Number(it.quantity) || 1,
+          Array.isArray(it.customizations) ? it.customizations : [],
+          typeof it.notes === 'string' ? it.notes : ''
+        );
+      } else {
+        const found = menuItems.find(m => m.id === (it as any).id || m.id === (it as any).menuItemId || m.name === (it as any).name);
+        if (found) {
+          addToCart(
+            found,
+            Number(it.quantity) || 1,
+            Array.isArray(it.customizations) ? it.customizations : [],
+            typeof it.notes === 'string' ? it.notes : ''
+          );
+        }
+      }
     });
     setIsOrderHistoryOpen(false);
     setIsCartOpen(true);

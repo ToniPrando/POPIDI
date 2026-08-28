@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { formatBRL } from '../utils/formatters';
-import officialLogoImg from '../assets/images/popidi_official_logo.png';
 import { 
   ShoppingBag, 
   Clock, 
@@ -58,12 +57,14 @@ export const Header: React.FC = () => {
     setAuthModalTab('login');
     setIsAuthModalOpen(true);
     setMobileMenuOpen(false);
+    setUserDropdownOpen(false);
   };
 
   const handleOpenRegister = () => {
     setAuthModalTab('register');
     setIsAuthModalOpen(true);
     setMobileMenuOpen(false);
+    setUserDropdownOpen(false);
   };
 
   const handleOpenLoyalty = () => {
@@ -88,30 +89,8 @@ export const Header: React.FC = () => {
       <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 gap-3">
           
-          {/* Left Navigation Menus & Brand Logo */}
+          {/* Left Navigation Menus */}
           <div className="flex items-center gap-3 sm:gap-4">
-            {/* Brand Logo in Header */}
-            <a 
-              href="#" 
-              className="flex items-center gap-2 group py-1 shrink-0"
-              title="PO-PI-DI Hamburgueria & Choperia"
-            >
-              <div className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center shrink-0">
-                <img 
-                  src={officialLogoImg || "/popidi_official_logo.png"} 
-                  alt="PO-PI-DI" 
-                  className="w-full h-full object-contain group-hover:scale-105 transition-transform" 
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/popidi_official_logo.png';
-                  }}
-                />
-              </div>
-              <div className="hidden sm:flex flex-col text-left">
-                <span className="text-sm font-black neon-text-green tracking-wider leading-none">PO-PI-DI</span>
-                <span className="text-[10px] font-serif italic text-fuchsia-400 font-bold leading-tight">Hamburgueria & Choperia</span>
-              </div>
-            </a>
-
             {/* Desktop Nav */}
             <nav className="hidden lg:flex items-center gap-1.5 bg-zinc-950/80 p-1.5 rounded-2xl border border-zinc-800/80 shadow-inner">
               <a 
@@ -265,6 +244,18 @@ export const Header: React.FC = () => {
                       onClick={() => {
                         setUserDropdownOpen(false);
                         logout();
+                        handleOpenLogin();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-amber-400 hover:text-amber-300 hover:bg-amber-950/30 rounded-xl transition-colors text-left"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      <span>Trocar de Conta / Novo Login</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        logout();
                       }}
                       className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-xl transition-colors text-left mt-1 border-t border-zinc-800/80 pt-2"
                     >
@@ -278,7 +269,7 @@ export const Header: React.FC = () => {
               <button
                 id="btn-open-customer-login"
                 onClick={handleOpenLogin}
-                className="flex items-center gap-2 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 hover:text-white px-3 sm:px-3.5 py-2.5 rounded-xl border border-zinc-800 hover:border-zinc-700 text-xs font-bold transition-all shadow-sm"
+                className="flex items-center gap-2 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 hover:text-white px-3 sm:px-3.5 py-2.5 rounded-xl border border-zinc-800 hover:border-zinc-700 text-xs font-bold transition-all shadow-sm cursor-pointer"
                 title="Entrar com Google ou E-mail"
               >
                 <LogIn className="w-4 h-4 text-emerald-400" />
@@ -287,26 +278,29 @@ export const Header: React.FC = () => {
               </button>
             )}
 
-            {/* Cart Button with Neon Green accent - Only visible after login */}
-            {user && (
-              <button
-                id="btn-open-cart-header"
-                onClick={() => setIsCartOpen(true)}
-                className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 via-emerald-400 to-green-500 hover:from-emerald-400 hover:to-green-400 text-black font-black px-3 sm:px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-500/25 hover:scale-[1.02] active:scale-95 transition-all border border-emerald-300/40 cursor-pointer"
-              >
-                <div className="relative">
-                  <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-2.5 -right-2.5 bg-fuchsia-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg border border-fuchsia-400 animate-bounce">
-                      {cartCount}
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs sm:text-sm font-black">
-                  {cartCount > 0 ? formatBRL(total) : 'Carrinho'}
-                </span>
-              </button>
-            )}
+            {/* Cart Button with Neon Green accent */}
+            <button
+              id="btn-open-cart-header"
+              onClick={() => setIsCartOpen(true)}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl shadow-lg transition-all border cursor-pointer ${
+                cartCount > 0
+                  ? 'bg-gradient-to-r from-emerald-500 via-emerald-400 to-green-500 hover:from-emerald-400 hover:to-green-400 text-black font-black shadow-emerald-500/25 border-emerald-300/40 hover:scale-[1.02] active:scale-95'
+                  : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold border-zinc-800'
+              }`}
+              title="Abrir Meu Carrinho de Pedidos"
+            >
+              <div className="relative">
+                <ShoppingBag className={`w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5] ${cartCount > 0 ? 'text-black' : 'text-emerald-400'}`} />
+                {cartCount > 0 && (
+                  <span className="absolute -top-2.5 -right-2.5 bg-fuchsia-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-lg border border-fuchsia-400 animate-bounce">
+                    {cartCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs sm:text-sm font-black">
+                {cartCount > 0 ? formatBRL(total) : 'Carrinho'}
+              </span>
+            </button>
 
             {/* Mobile menu toggle */}
             <button

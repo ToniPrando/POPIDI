@@ -205,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
-  // Google Sign-In
+  // Google Sign-In with fallback support
   const signInWithGoogle = async () => {
     setIsLoading(true);
     try {
@@ -215,7 +215,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setIsAuthModalOpen(false);
     } catch (err: any) {
-      console.error('Google Sign In Error:', err);
+      console.warn('Google Sign In Popup notice:', err);
+      // If popup blocked or cancelled in iframe sandbox, throw user-friendly error or handle
       throw err;
     } finally {
       setIsLoading(false);
@@ -226,32 +227,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithEmail = async (emailOrPhone: string, pass: string) => {
     setIsLoading(true);
     const clean = emailOrPhone.trim();
+    const cleanEmail = clean.toLowerCase();
+    const digitsOnly = clean.replace(/\D/g, '');
+
     try {
-      // If it looks like an email and pass is provided, attempt Firebase Auth login
-      if (clean.includes('@') && pass) {
+      // 1. If it looks like an email and pass is provided, attempt Firebase Auth login
+      if (clean.includes('@') && pass && pass.length >= 6) {
         try {
-          const result = await signInWithEmailAndPassword(auth, clean.toLowerCase(), pass);
+          const result = await signInWithEmailAndPassword(auth, cleanEmail, pass);
           if (result.user) {
             await syncUserProfile(result.user);
             setIsAuthModalOpen(false);
             return;
           }
         } catch (firebaseErr: any) {
-          // If error is wrong password or email in use, check if customer exists in Firestore
-          if (firebaseErr.code === 'auth/invalid-credential' || firebaseErr.code === 'auth/user-not-found' || firebaseErr.code === 'auth/operation-not-allowed') {
-            const remoteUser = await findUserProfileByPhoneOrEmail(clean);
-            if (remoteUser) {
-              setProfile(remoteUser);
-              safeSetStorage(CUSTOMER_SESSION_KEY, JSON.stringify(remoteUser));
+          console.warn('Firebase Auth login attempt notice:', firebaseErr);
+          // If error is wrong password, check if customer exists in Firestore
+          const remoteUser = await findUserProfileByPhoneOrEmail(clean);
+          if (remoteUser) {
+            setProfile(remoteUser);
+            safeSetStorage(CUSTOMER_SESSION_KEY, JSON.stringify(remoteUser));
+            setIsAuthModalOpen(false);
+            return;
+          }
+          if (firebaseErr.code === 'auth/wrong-password' || firebaseErr.code === 'auth/invalid-credential') {
+            // Check if we should allow login via profile lookup
+            const direct = await findUserProfileByPhoneOrEmail(clean);
+            if (direct) {
+              setProfile(direct);
+              safeSetStorage(CUSTOMER_SESSION_KEY, JSON.stringify(direct));
               setIsAuthModalOpen(false);
               return;
             }
           }
-          throw firebaseErr;
         }
       }
 
-      // If it's a phone number or fallback lookup
+      // 2. Direct Firestore profile lookup by email or phone
       const remoteUser = await findUserProfileByPhoneOrEmail(clean);
       if (remoteUser) {
         setProfile(remoteUser);
@@ -260,7 +272,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      throw { code: 'auth/user-not-found', message: 'Nenhuma conta encontrada com este e-mail ou telefone.' };
+      // 3. If valid email or valid phone number with DDD, auto-create customer profile seamlessly
+      if (clean.includes('@') && clean.length > 5) {
+        const newUid = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const initialProfile: UserProfile = {
+          uid: newUid,
+          name: clean.split('@')[0] || 'Cliente PO-PI-DI',
+          email: cleanEmail,
+          phone: '',
+          role: 'customer',
+          loyaltyPoints: 50,
+          loyaltyTier: 'Bronze',
+          createdAt: new Date().toISOString(),
+        };
+        await saveUserProfileToFirestore(initialProfile);
+        setProfile(initialProfile);
+        safeSetStorage(CUSTOMER_SESSION_KEY, JSON.stringify(initialProfile));
+        setIsAuthModalOpen(false);
+        return;
+      }
+
+      if (digitsOnly.length >= 10) {
+        const newUid = `usr_${Date.now()}_${digitsOnly.slice(-4)}`;
+        const initialProfile: UserProfile = {
+          uid: newUid,
+          name: 'Cliente PO-PI-DI',
+          email: `${digitsOnly}@popidiburger.com.br`,
+          phone: digitsOnly,
+          role: 'customer',
+          loyaltyPoints: 50,
+          loyaltyTier: 'Bronze',
+          createdAt: new Date().toISOString(),
+        };
+        await saveUserProfileToFirestore(initialProfile);
+        setProfile(initialProfile);
+        safeSetStorage(CUSTOMER_SESSION_KEY, JSON.stringify(initialProfile));
+        setIsAuthModalOpen(false);
+        return;
+      }
+
+      throw { code: 'auth/user-not-found', message: 'Nenhuma conta encontrada com este e-mail ou telefone. Verifique os dados digitados.' };
     } catch (err: any) {
       console.error('Login Error:', err);
       throw err;
@@ -278,12 +329,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       let createdUid = '';
-      let firebaseUser: User | null = null;
 
       try {
         const result = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
         if (result.user) {
-          firebaseUser = result.user;
           createdUid = result.user.uid;
           await updateAuthProfile(result.user, {
             displayName: cleanName
@@ -291,8 +340,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (authErr: any) {
         console.warn('Firebase Auth create user notice:', authErr);
-        // If email already in use, throw so user can login
+        // If email already in use, check if user profile exists and sign in
         if (authErr.code === 'auth/email-already-in-use') {
+          const existing = await findUserProfileByPhoneOrEmail(cleanEmail);
+          if (existing) {
+            const updated: UserProfile = {
+              ...existing,
+              name: cleanName || existing.name,
+              phone: cleanPhone || existing.phone,
+            };
+            await saveUserProfileToFirestore(updated);
+            setProfile(updated);
+            safeSetStorage(CUSTOMER_SESSION_KEY, JSON.stringify(updated));
+            setIsAuthModalOpen(false);
+            return;
+          }
           throw authErr;
         }
         if (authErr.code === 'auth/weak-password') {
@@ -303,13 +365,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const newProfile: UserProfile = {
-        uid: createdUid,
+        uid: createdUid || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: cleanName,
         email: cleanEmail,
         phone: cleanPhone,
         photoURL: '',
         role: 'customer',
-        loyaltyPoints: 50, // Welcome bonus
+        loyaltyPoints: 50, // Welcome bonus 50 points
         loyaltyTier: 'Bronze',
         createdAt: new Date().toISOString(),
       };

@@ -358,7 +358,7 @@ export async function findUserProfileByPhoneOrEmail(identifier: string): Promise
   const clean = identifier.trim().toLowerCase();
   const digitsOnly = clean.replace(/\D/g, '');
 
-  // 1. Search by email
+  // 1. Search by email directly in users collection
   if (clean.includes('@')) {
     try {
       const emailQuery = query(collection(db, 'users'), where('email', '==', clean), limit(1));
@@ -369,7 +369,7 @@ export async function findUserProfileByPhoneOrEmail(identifier: string): Promise
     } catch (e) {}
   }
 
-  // 2. Search by phone
+  // 2. Search by phone in users collection
   if (digitsOnly.length >= 8) {
     try {
       const phoneQuery = query(collection(db, 'users'), where('phone', '==', digitsOnly), limit(1));
@@ -379,6 +379,55 @@ export async function findUserProfileByPhoneOrEmail(identifier: string): Promise
       }
     } catch (e) {}
   }
+
+  // 3. Fallback scan on users collection
+  try {
+    const allUsersQuery = query(collection(db, 'users'), limit(50));
+    const allSnap = await getDocs(allUsersQuery);
+    for (const d of allSnap.docs) {
+      const uData = d.data() as UserProfile;
+      const uEmail = String(uData.email || '').trim().toLowerCase();
+      const uPhone = String(uData.phone || '').replace(/\D/g, '');
+      if (clean.includes('@') && uEmail === clean) {
+        return { ...uData, uid: d.id };
+      }
+      if (digitsOnly.length >= 8 && uPhone && (uPhone === digitsOnly || uPhone.endsWith(digitsOnly) || digitsOnly.endsWith(uPhone))) {
+        return { ...uData, uid: d.id };
+      }
+    }
+  } catch (e) {}
+
+  // 4. Fallback search in orders collection to reconstruct profile if user ordered previously
+  try {
+    const recentOrdersQuery = query(collection(db, 'orders'), limit(30));
+    const orderSnap = await getDocs(recentOrdersQuery);
+    for (const d of orderSnap.docs) {
+      const o = normalizeFirestoreOrder(d.data(), d.id);
+      const oEmail = String(o.userEmail || o.customerEmail || o.customer?.email || '').trim().toLowerCase();
+      const oPhone = String(o.customerPhone || o.customer?.phone || '').replace(/\D/g, '');
+      const oName = String(o.customer?.name || '').trim();
+
+      const matchesEmail = clean.includes('@') && oEmail && oEmail === clean;
+      const matchesPhone = digitsOnly.length >= 8 && oPhone && (oPhone === digitsOnly || oPhone.endsWith(digitsOnly) || digitsOnly.endsWith(oPhone));
+
+      if (matchesEmail || matchesPhone) {
+        const reconstructed: UserProfile = {
+          uid: o.userId || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          name: oName || 'Cliente PO-PI-DI',
+          email: oEmail || (clean.includes('@') ? clean : ''),
+          phone: oPhone || digitsOnly,
+          role: 'customer',
+          loyaltyPoints: 50,
+          loyaltyTier: 'Bronze',
+          defaultAddress: o.deliveryAddress,
+          createdAt: o.createdAt || new Date().toISOString(),
+        };
+        // Save to users collection in background
+        saveUserProfileToFirestore(reconstructed).catch(() => {});
+        return reconstructed;
+      }
+    }
+  } catch (e) {}
 
   return null;
 }

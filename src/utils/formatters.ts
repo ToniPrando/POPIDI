@@ -19,8 +19,10 @@ export function formatDateTime(isoString: any): string {
     if (typeof isoString === 'object' && isoString !== null) {
       if (typeof isoString.toDate === 'function') {
         date = isoString.toDate();
-      } else if ('seconds' in isoString) {
-        date = new Date(Number(isoString.seconds) * 1000);
+      } else if ('seconds' in isoString && typeof isoString.seconds === 'number') {
+        date = new Date(isoString.seconds * 1000);
+      } else if ('_seconds' in isoString && typeof isoString._seconds === 'number') {
+        date = new Date(isoString._seconds * 1000);
       } else {
         date = new Date(String(isoString));
       }
@@ -31,7 +33,7 @@ export function formatDateTime(isoString: any): string {
     }
 
     if (isNaN(date.getTime())) {
-      return typeof isoString === 'string' ? isoString : '--/--/---- --:--';
+      return typeof isoString === 'string' && !isoString.startsWith('[object') ? isoString : '--/--/---- --:--';
     }
 
     return new Intl.DateTimeFormat('pt-BR', {
@@ -42,7 +44,7 @@ export function formatDateTime(isoString: any): string {
       minute: '2-digit',
     }).format(date);
   } catch {
-    return typeof isoString === 'string' ? isoString : '--/--/---- --:--';
+    return '--/--/---- --:--';
   }
 }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { getLoyaltyTier } from '../data/loyaltyRewards';
@@ -19,7 +19,9 @@ import {
   Gift,
   Star,
   Zap,
-  Smartphone
+  Smartphone,
+  History,
+  ShoppingBag
 } from 'lucide-react';
 
 export const AuthModal: React.FC = () => {
@@ -39,7 +41,7 @@ export const AuthModal: React.FC = () => {
     logout
   } = useAuth();
 
-  const { setIsLoyaltyOpen } = useCart();
+  const { setIsLoyaltyOpen, setIsOrderHistoryOpen, orders, customerInfo } = useCart();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,6 +52,49 @@ export const AuthModal: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isForgotPass, setIsForgotPass] = useState(false);
+
+  // Compute number of orders for the customer
+  const userOrdersCount = useMemo(() => {
+    try {
+      if (!user && !profile) return 0;
+      const targetEmail = String(user?.email || profile?.email || customerInfo?.email || '').toLowerCase().trim();
+      const targetUid = String(user?.uid || profile?.uid || '').trim();
+      const targetPhone = String(profile?.phone || customerInfo?.phone || '').replace(/\D/g, '');
+
+      let localPlacedIds: string[] = [];
+      try {
+        const stored = localStorage.getItem('popidi_placed_order_ids');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            localPlacedIds = parsed.map(id => String(id || '').trim()).filter(Boolean);
+          } else if (typeof parsed === 'string' && parsed.trim()) {
+            localPlacedIds = [parsed.trim()];
+          }
+        }
+      } catch {
+        localPlacedIds = [];
+      }
+
+      const allOrders = Array.isArray(orders) ? orders.filter(Boolean) : [];
+      return allOrders.filter(order => {
+        if (!order || typeof order !== 'object') return false;
+        const orderId = String(order.id || '').trim();
+        if (orderId && Array.isArray(localPlacedIds) && localPlacedIds.includes(orderId)) return true;
+        if (targetUid && order.userId && String(order.userId).trim() === targetUid) return true;
+        const rawEmail = order.userEmail || order.customerEmail || (typeof order.customer === 'object' && order.customer ? order.customer.email : '') || '';
+        const email = String(rawEmail).toLowerCase().trim();
+        if (targetEmail && email && email === targetEmail) return true;
+        const rawPhone = order.customerPhone || (typeof order.customer === 'object' && order.customer ? order.customer.phone : '') || '';
+        const phone = String(rawPhone).replace(/\D/g, '');
+        if (targetPhone && phone && (phone === targetPhone || phone.endsWith(targetPhone) || targetPhone.endsWith(phone))) return true;
+        return false;
+      }).length;
+    } catch (e) {
+      console.error('Error calculating user orders count:', e);
+      return 0;
+    }
+  }, [orders, user, profile, customerInfo]);
 
   if (!isAuthModalOpen) return null;
 
@@ -70,6 +115,11 @@ export const AuthModal: React.FC = () => {
   const handleClose = () => {
     resetForm();
     setIsAuthModalOpen(false);
+  };
+
+  const handleOpenMyOrders = () => {
+    handleClose();
+    setIsOrderHistoryOpen(true);
   };
 
   // Format Brazilian phone mask on typing: (XX)XXXXX-XXXX
@@ -277,6 +327,49 @@ export const AuthModal: React.FC = () => {
                 )}
               </div>
 
+              {/* MEUS PEDIDOS CARD */}
+              <div className="p-4 bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 rounded-2xl border border-emerald-500/40 text-left space-y-3 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500 text-black flex items-center justify-center font-black">
+                      <History className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-white block leading-none">Meus Pedidos</span>
+                      <span className="text-[10px] text-zinc-400">Histórico de compras</span>
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-950 border border-emerald-800/60 text-emerald-400">
+                    {userOrdersCount} {userOrdersCount === 1 ? 'pedido' : 'pedidos'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between bg-zinc-950/80 p-3 rounded-xl border border-zinc-800/80">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] text-zinc-500 uppercase block font-bold">Total de Pedidos</span>
+                    <div className="flex items-center gap-1.5 text-base font-black text-white">
+                      <ShoppingBag className="w-4 h-4 text-emerald-400" />
+                      <span>{userOrdersCount > 0 ? `${userOrdersCount} no histórico` : 'Sem pedidos ainda'}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    id="btn-customer-area-my-orders"
+                    onClick={handleOpenMyOrders}
+                    className="px-3.5 py-2 bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-400 hover:to-green-300 text-black font-black text-xs rounded-xl shadow-md transition-all hover:scale-102 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <History className="w-3.5 h-3.5" />
+                    <span>Ver Pedidos</span>
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-zinc-400 leading-snug">
+                  Acompanhe o status do preparo, veja recibos e repita pedidos favoritos.
+                </p>
+              </div>
+
               {/* LOYALTY POINTS CARD IN CUSTOMER ACCOUNT */}
               <div className="p-4 bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 rounded-2xl border border-amber-500/40 text-left space-y-3 shadow-lg">
                 <div className="flex items-center justify-between">
@@ -333,13 +426,15 @@ export const AuthModal: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex gap-2 pt-1">
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={logout}
-                  className="flex-1 py-3 bg-zinc-900 hover:bg-zinc-800 text-red-400 hover:text-red-300 font-bold text-xs rounded-xl border border-zinc-800 transition-colors cursor-pointer"
+                  id="btn-footer-customer-my-orders"
+                  onClick={handleOpenMyOrders}
+                  className="flex-1 py-3 bg-zinc-900 hover:bg-zinc-800 text-emerald-400 hover:text-emerald-300 font-black text-xs rounded-xl border border-zinc-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  Sair da Conta
+                  <History className="w-4 h-4" />
+                  <span>Meus Pedidos</span>
                 </button>
                 <button
                   type="button"
@@ -347,6 +442,25 @@ export const AuthModal: React.FC = () => {
                   className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 text-black font-black text-xs rounded-xl shadow-lg transition-transform hover:scale-[1.02] cursor-pointer"
                 >
                   Fazer Pedido
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setAuthModalTab('login');
+                  }}
+                  className="py-3 px-3.5 bg-zinc-900 hover:bg-amber-950/40 text-zinc-300 hover:text-amber-300 font-bold text-xs rounded-xl border border-zinc-800 transition-colors cursor-pointer"
+                  title="Trocar de Conta"
+                >
+                  Trocar Conta
+                </button>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="py-3 px-3.5 bg-zinc-900 hover:bg-red-950/40 text-zinc-400 hover:text-red-400 font-bold text-xs rounded-xl border border-zinc-800 transition-colors cursor-pointer"
+                  title="Sair da Conta"
+                >
+                  Sair
                 </button>
               </div>
             </div>

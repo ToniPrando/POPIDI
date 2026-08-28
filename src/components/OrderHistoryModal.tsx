@@ -41,54 +41,77 @@ export const OrderHistoryModal: React.FC = () => {
   const [searchCodeInput, setSearchCodeInput] = useState('');
   const [searchStatus, setSearchStatus] = useState<{ loading: boolean; error?: string; success?: string }>({ loading: false });
 
-  if (!isOrderHistoryOpen) return null;
-
-  const currentLoyaltyPoints = profile?.loyaltyPoints ?? (user ? 50 : 0);
-
-  // Filter orders for the logged-in user or profile
+  // Filter orders for the logged-in user, profile or current browser session
   const userOrders = useMemo(() => {
     try {
       const allOrders = Array.isArray(orders) ? orders.filter(Boolean) : [];
-      if (!user && !profile) {
-        // Disconnected user: do not show open or general orders
-        return [];
-      }
-
-      const targetEmail = String(user?.email || profile?.email || '').toLowerCase().trim();
-      const targetUid = String(user?.uid || profile?.uid || '').trim();
-      const targetPhone = String(profile?.phone || customerInfo?.phone || '').replace(/\D/g, '');
 
       let localPlacedIds: string[] = [];
       try {
         const stored = localStorage.getItem('popidi_placed_order_ids');
-        if (stored) localPlacedIds = JSON.parse(stored);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            localPlacedIds = parsed.map(id => String(id || '').trim()).filter(Boolean);
+          } else if (typeof parsed === 'string' && parsed.trim()) {
+            localPlacedIds = [parsed.trim()];
+          }
+        }
       } catch {
-        // ignore
+        localPlacedIds = [];
       }
 
-      return allOrders.filter(order => {
-        if (!order) return false;
+      // If user is not logged in, show orders placed in this browser or matching current session phone
+      const targetEmail = String(user?.email || profile?.email || customerInfo?.email || '').toLowerCase().trim();
+      const targetUid = String(user?.uid || profile?.uid || '').trim();
+      const targetPhone = String(profile?.phone || customerInfo?.phone || '').replace(/\D/g, '');
+      const targetName = String(profile?.name || user?.displayName || customerInfo?.name || '').toLowerCase().trim();
 
-        // Check if placed in this session/browser
-        if (order.id && localPlacedIds.includes(order.id)) {
+      const isLoggedIn = Boolean(user || profile);
+
+      return allOrders.filter(order => {
+        if (!order || typeof order !== 'object') return false;
+
+        const orderId = String(order.id || '').trim();
+
+        // 1. Check if placed in this session/browser
+        if (orderId && Array.isArray(localPlacedIds) && localPlacedIds.includes(orderId)) {
           return true;
         }
 
-        // Match by UID
+        // 2. Match by UID if logged in
         if (targetUid && order.userId && String(order.userId).trim() === targetUid) {
           return true;
         }
 
-        // Match by Email
-        const email = String(order.userEmail || order.customerEmail || order.customer?.email || '').toLowerCase().trim();
+        // 3. Match by Email
+        const rawEmail = order.userEmail || order.customerEmail || (typeof order.customer === 'object' && order.customer ? order.customer.email : '') || '';
+        const email = String(rawEmail).toLowerCase().trim();
         if (targetEmail && email && email === targetEmail) {
           return true;
         }
 
-        // Match by Phone
-        const phone = String(order.customerPhone || order.customer?.phone || '').replace(/\D/g, '');
-        if (targetPhone && phone && targetPhone.length >= 8 && (phone === targetPhone || phone.endsWith(targetPhone) || targetPhone.endsWith(phone))) {
-          return true;
+        // 4. Match by Phone (exact or suffix match)
+        const rawPhone = order.customerPhone || (typeof order.customer === 'object' && order.customer ? order.customer.phone : '') || '';
+        const phone = String(rawPhone).replace(/\D/g, '');
+        if (targetPhone && phone) {
+          const cleanTarget = targetPhone.slice(-8);
+          const cleanPhone = phone.slice(-8);
+          if (cleanTarget.length >= 8 && cleanPhone.length >= 8 && cleanTarget === cleanPhone) {
+            return true;
+          }
+          if (phone === targetPhone || phone.endsWith(targetPhone) || targetPhone.endsWith(phone)) {
+            return true;
+          }
+        }
+
+        // 5. If logged in and customer name matches identically
+        if (isLoggedIn && targetName && targetName.length >= 3) {
+          const rawCustomerName = (typeof order.customer === 'object' && order.customer ? order.customer.name : '') || (order as any).customerName || '';
+          const orderCustomerName = String(rawCustomerName).toLowerCase().trim();
+          if (orderCustomerName && orderCustomerName === targetName) {
+            return true;
+          }
         }
 
         return false;
@@ -98,6 +121,10 @@ export const OrderHistoryModal: React.FC = () => {
       return [];
     }
   }, [orders, user, profile, customerInfo]);
+
+  if (!isOrderHistoryOpen) return null;
+
+  const currentLoyaltyPoints = profile?.loyaltyPoints ?? (user ? 50 : 0);
 
   const handleTrackOrder = (order: Order) => {
     setActiveOrder(order);
@@ -264,13 +291,16 @@ export const OrderHistoryModal: React.FC = () => {
             </div>
           ) : (
             userOrders.map((order, orderIdx) => {
-              const safeItems = Array.isArray(order?.items) ? order.items : [];
-              const safeTotal = Number(order?.total) || 0;
-              const safeShortCode = order?.shortCode || `#PO-${(order?.id || String(orderIdx)).slice(-4).toUpperCase()}`;
+              if (!order || typeof order !== 'object') return null;
+
+              const safeItems = Array.isArray(order.items) ? order.items.filter(Boolean) : [];
+              const safeTotal = typeof order.total === 'number' && !isNaN(order.total) ? order.total : Number(order.total) || 0;
+              const safeShortCode = order.shortCode || `#PO-${String(order.id || orderIdx).slice(-4).toUpperCase()}`;
+              const orderStatus = order.status || 'received';
 
               return (
                 <div
-                  key={order.id || orderIdx}
+                  key={order.id || `order-${orderIdx}`}
                   className="p-4 bg-zinc-900/70 hover:bg-zinc-900 rounded-xl border border-zinc-800 space-y-3 transition-colors text-left"
                 >
                   <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5">
@@ -286,22 +316,29 @@ export const OrderHistoryModal: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
                         <Star className="w-3 h-3 fill-amber-400" />
-                        +{Math.floor(safeTotal)} pts
+                        +{Math.max(0, Math.floor(safeTotal))} pts
                       </span>
 
                       <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                        order.status === 'completed'
+                        orderStatus === 'completed'
                           ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                          : order.status === 'preparing'
+                          : orderStatus === 'preparing'
                           ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                          : orderStatus === 'out_for_delivery'
+                          ? 'bg-purple-950 text-purple-400 border border-purple-800'
+                          : orderStatus === 'ready'
+                          ? 'bg-teal-950 text-teal-400 border border-teal-800'
+                          : orderStatus === 'cancelled'
+                          ? 'bg-red-950 text-red-400 border border-red-800'
                           : 'bg-blue-950 text-blue-400 border border-blue-800'
                       }`}>
-                        {order.status === 'received' && 'Recebido'}
-                        {order.status === 'preparing' && 'Na Chapa'}
-                        {order.status === 'out_for_delivery' && 'Em Entrega'}
-                        {order.status === 'ready' && 'Pronto'}
-                        {order.status === 'completed' && 'Entregue'}
-                        {order.status === 'cancelled' && 'Cancelado'}
+                        {orderStatus === 'received' && 'Recebido'}
+                        {orderStatus === 'preparing' && 'Na Chapa'}
+                        {orderStatus === 'out_for_delivery' && 'Em Entrega'}
+                        {orderStatus === 'ready' && 'Pronto'}
+                        {orderStatus === 'completed' && 'Entregue'}
+                        {orderStatus === 'cancelled' && 'Cancelado'}
+                        {!['received', 'preparing', 'out_for_delivery', 'ready', 'completed', 'cancelled'].includes(orderStatus) && 'Processando'}
                       </span>
                     </div>
                   </div>
@@ -309,11 +346,11 @@ export const OrderHistoryModal: React.FC = () => {
                   {/* Items summary */}
                   <div className="text-xs text-zinc-300 space-y-1">
                     {safeItems.map((it, idx) => {
-                      const itemName = it?.menuItem?.name || (it as any)?.name || 'Item';
-                      const itemQuantity = it?.quantity || 1;
-                      const itemPrice = it?.totalPrice || 0;
+                      const itemName = it?.menuItem?.name || (it as any)?.name || 'Item do Pedido';
+                      const itemQuantity = Number(it?.quantity) || 1;
+                      const itemPrice = typeof it?.totalPrice === 'number' ? it.totalPrice : (Number(it?.unitPrice) || 0) * itemQuantity;
                       return (
-                        <div key={idx} className="flex justify-between">
+                        <div key={it?.cartItemId || (it as any)?.id || `item-${idx}`} className="flex justify-between">
                           <span className="text-zinc-200">
                             {itemQuantity}x {itemName}
                           </span>
@@ -334,6 +371,7 @@ export const OrderHistoryModal: React.FC = () => {
 
                     <div className="flex items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => handleTrackOrder(order)}
                         className="flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-zinc-700 font-medium transition-colors cursor-pointer"
                       >
@@ -342,6 +380,7 @@ export const OrderHistoryModal: React.FC = () => {
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => reorder(order)}
                         className="flex items-center gap-1 text-xs bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 rounded-lg font-black transition-colors cursor-pointer"
                       >
