@@ -3,7 +3,6 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { NeonLogo } from './NeonLogo';
 import { getCleanWhatsAppNumber } from '../utils/formatters';
-import toniaepLogo from '../assets/images/toniaep_drive_logo.png';
 import { 
   Flame, 
   Instagram, 
@@ -213,17 +212,27 @@ export const Footer: React.FC = () => {
           <span className="text-[11px] font-extrabold uppercase tracking-[0.25em] text-cyan-400/90 mb-3 block drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]">
             CRIADO POR
           </span>
-          <div className="relative group p-1.5 rounded-2xl bg-zinc-950/80 border border-cyan-950/60 shadow-[0_0_25px_rgba(34,211,238,0.15)] hover:shadow-[0_0_35px_rgba(34,211,238,0.3)] transition-all duration-300">
+          <a
+            href="https://toniaepprojetos.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Conheça a TonIAep Projetos - Criando Inovação"
+            className="relative group p-1.5 rounded-2xl bg-zinc-950/80 border border-cyan-950/60 shadow-[0_0_25px_rgba(34,211,238,0.15)] hover:shadow-[0_0_35px_rgba(34,211,238,0.35)] hover:border-cyan-800/80 transition-all duration-300 inline-block cursor-pointer"
+          >
             <img 
-              src={toniaepLogo} 
+              src="https://lh3.googleusercontent.com/d/1tT4xtnXqbMU8tLElUPSLoSBv9V934TwO" 
               alt="TonIAep - Criando Inovação" 
               className="h-16 sm:h-20 md:h-24 w-auto object-contain rounded-xl transition-transform duration-300 group-hover:scale-105"
               referrerPolicy="no-referrer"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = '/toniaep_logo.png';
+                const target = e.target as HTMLImageElement;
+                if (!target.dataset.triedBackup) {
+                  target.dataset.triedBackup = 'true';
+                  target.src = 'https://drive.google.com/uc?export=view&id=1tT4xtnXqbMU8tLElUPSLoSBv9V934TwO';
+                }
               }}
             />
-          </div>
+          </a>
         </div>
 
         {/* Bottom copyright line */}
