@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { MenuItem, CategoryId } from '../types';
-import { menuCategories, suggestedMenuPhotos, SuggestedPhoto, initialMenuItems } from '../data/menuData';
+import { menuCategories, suggestedMenuPhotos, SuggestedPhoto } from '../data/menuData';
 import { formatBRL } from '../utils/formatters';
 import {
   X,
@@ -12,27 +12,21 @@ import {
   Upload,
   RefreshCw,
   Check,
-  AlertTriangle,
   Sparkles,
   Layers,
   Search,
   Sliders,
-  DollarSign,
-  Tag,
-  Clock,
-  FileText,
-  HelpCircle,
-  Eye,
-  EyeOff,
-  ChevronRight,
   Store,
   MapPin,
-  Phone,
-  Instagram,
   Beer,
   Flame,
   ShieldCheck,
   Zap,
+  Eye,
+  EyeOff,
+  ChevronRight,
+  DollarSign,
+  RotateCcw,
 } from 'lucide-react';
 
 interface MenuAndContentEditorModalProps {
@@ -60,27 +54,42 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
-  // Form State
+  // Form State for Menu Item
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formName, setFormName] = useState('');
-  const [formCategory, setFormCategory] = useState<CategoryId>('pasteis-salgados');
-  const [formPrice, setFormPrice] = useState<string>('16.90');
+  const [formCategory, setFormCategory] = useState<CategoryId>('smash');
+  const [formPrice, setFormPrice] = useState<string>('24.90');
   const [formPromotionalPrice, setFormPromotionalPrice] = useState<string>('');
-  const [formSizeTag, setFormSizeTag] = useState('20cm');
   const [formBadge, setFormBadge] = useState<string>('Nenhum');
-  const [formPrepTime, setFormPrepTime] = useState<string>('12');
+  const [formPrepTime, setFormPrepTime] = useState<string>('15');
   const [formDescription, setFormDescription] = useState('');
   const [formIngredientsInput, setFormIngredientsInput] = useState('');
   const [formImage, setFormImage] = useState('');
   const [formAvailable, setFormAvailable] = useState(true);
 
-  // Suggested Photos Filter
+  // Suggested Photos & Custom Gallery State
+  const [galleryPhotos, setGalleryPhotos] = useState<SuggestedPhoto[]>(() => {
+    const saved = localStorage.getItem('popidi_gallery_photos');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {
+        // fallback
+      }
+    }
+    return suggestedMenuPhotos;
+  });
+
   const [photoCategoryFilter, setPhotoCategoryFilter] = useState<string>('Todos');
+  const [newPhotoLabel, setNewPhotoLabel] = useState('');
+  const [newPhotoUrl, setNewPhotoUrl] = useState('');
+  const [newPhotoCategory, setNewPhotoCategory] = useState('Burgers & Smash');
 
   // Store Sections Form State (Local draft)
   const [sectionHeroBadge, setSectionHeroBadge] = useState(storeSettings.heroSpecialBadge || 'O Autêntico Burger Artesanal & Chopp Gelado');
   const [sectionHeroHeadline, setSectionHeroHeadline] = useState(storeSettings.heroHeadline || 'BURGER ARTESANAL NA BRASA & CHOPP TRINCANDO DE GELADO.');
-  const [sectionHeroSubheadline, setSectionHeroSubheadline] = useState(storeSettings.heroSubheadline || 'Pães brioche selados na manteiga, carnes nobres moídas diariamente na brasa, pastéis sequinhos e o autêntico X-Tudo Especial.');
+  const [sectionHeroSubheadline, setSectionHeroSubheadline] = useState(storeSettings.heroSubheadline || 'Pães brioche selados na manteiga, carnes nobres moídas diariamente na brasa, smash burgers suculentos e o autêntico X-Tudo Especial.');
   const [sectionBannerText, setSectionBannerText] = useState(storeSettings.activeBannerAnnouncement || '');
   const [sectionOpeningHours, setSectionOpeningHours] = useState(storeSettings.openingHoursText || 'Terça a Domingo: 18:30 às 23:30');
   const [sectionPhone, setSectionPhone] = useState(storeSettings.phoneWhatsApp || '(15) 99845-6677');
@@ -98,7 +107,34 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
   const [sectionPixReceiver, setSectionPixReceiver] = useState(storeSettings.pixReceiverName || 'PO-PI-DI Hamburgueria');
   const [sectionPrepMin, setSectionPrepMin] = useState(String(storeSettings.estimatedPrepTimeMin || 25));
   const [sectionPrepMax, setSectionPrepMax] = useState(String(storeSettings.estimatedPrepTimeMax || 45));
-  const [sectionAboutStory, setSectionAboutStory] = useState(storeSettings.aboutStoryText || 'Na PO-PI-DI, cada pastel e hambúrguer é preparado artesanalmente com ingredientes frescos de altíssima qualidade, queijo derretido, temperos especiais e chopp trincando de gelado.');
+  const [sectionAboutStory, setSectionAboutStory] = useState(storeSettings.aboutStoryText || 'Na PO-PI-DI, cada lanche e hambúrguer é preparado artesanalmente com ingredientes frescos de altíssima qualidade, blends nobres moídos na hora, queijo derretido e chopp trincando de gelado.');
+
+  // Sync settings when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSectionHeroBadge(storeSettings.heroSpecialBadge || 'O Autêntico Burger Artesanal & Chopp Gelado');
+      setSectionHeroHeadline(storeSettings.heroHeadline || 'BURGER ARTESANAL NA BRASA & CHOPP TRINCANDO DE GELADO.');
+      setSectionHeroSubheadline(storeSettings.heroSubheadline || 'Pães brioche selados na manteiga, carnes nobres moídas diariamente na brasa, smash burgers suculentos e o autêntico X-Tudo Especial.');
+      setSectionBannerText(storeSettings.activeBannerAnnouncement || '');
+      setSectionOpeningHours(storeSettings.openingHoursText || 'Terça a Domingo: 18:30 às 23:30');
+      setSectionPhone(storeSettings.phoneWhatsApp || '(15) 99845-6677');
+      setSectionAddress(storeSettings.address || 'Rua José Bonifácio, 340');
+      setSectionCityState(storeSettings.cityState || 'Porto Feliz - SP');
+      setSectionCep(storeSettings.cep || '18540-003');
+      setSectionMapsUrl(storeSettings.googleMapsUrl || 'https://maps.google.com/?q=Porto+Feliz+SP');
+      setSectionInstagramHandle(storeSettings.instagramHandle || '@popidihamburgueria');
+      setSectionInstagramUrl(storeSettings.instagramUrl || 'https://instagram.com/popidihamburgueria');
+      setSectionDeliveryFee(String(storeSettings.standardDeliveryFee || 6));
+      setSectionFreeDeliveryMin(String(storeSettings.freeDeliveryThreshold || 80));
+      setSectionMinOrder(String(storeSettings.minimumOrderValue || 20));
+      setSectionPixKey(storeSettings.pixKey || '15998456677');
+      setSectionPixType(storeSettings.pixKeyType || 'Celular (WhatsApp)');
+      setSectionPixReceiver(storeSettings.pixReceiverName || 'PO-PI-DI Hamburgueria');
+      setSectionPrepMin(String(storeSettings.estimatedPrepTimeMin || 25));
+      setSectionPrepMax(String(storeSettings.estimatedPrepTimeMax || 45));
+      setSectionAboutStory(storeSettings.aboutStoryText || 'Na PO-PI-DI, cada lanche e hambúrguer é preparado artesanalmente com ingredientes frescos de altíssima qualidade, blends nobres moídos na hora, queijo derretido e chopp trincando de gelado.');
+    }
+  }, [isOpen, storeSettings]);
 
   if (!isOpen) return null;
 
@@ -112,15 +148,14 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
   const handleStartCreateNew = () => {
     setEditingId(null);
     setFormName('');
-    setFormCategory('pasteis-salgados');
-    setFormPrice('16.90');
+    setFormCategory('smash');
+    setFormPrice('24.90');
     setFormPromotionalPrice('');
-    setFormSizeTag('20cm');
     setFormBadge('Nenhum');
-    setFormPrepTime('12');
+    setFormPrepTime('15');
     setFormDescription('');
     setFormIngredientsInput('');
-    setFormImage('https://images.unsplash.com/photo-1608897013039-887f21d8c804?auto=format&fit=crop&w=800&q=80');
+    setFormImage('https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80');
     setFormAvailable(true);
     setActiveTab('form');
   };
@@ -131,7 +166,6 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
     setFormCategory(item.category);
     setFormPrice(item.price.toFixed(2));
     setFormPromotionalPrice(item.promotionalPrice ? item.promotionalPrice.toFixed(2) : '');
-    setFormSizeTag(item.sizeTag || '');
     setFormBadge(item.badge || 'Nenhum');
     setFormPrepTime(String(item.prepTimeMinutes || 15));
     setFormDescription(item.description || '');
@@ -145,9 +179,8 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check size (< 3MB)
     if (file.size > 3 * 1024 * 1024) {
-      alert('A imagem é muito pesada (máx 3MB). Por favor escolha uma imagem menor ou use uma URL.');
+      alert('A imagem é muito pesada (máx 3MB). Por favor escolha uma imagem menor ou utilize uma URL.');
       return;
     }
 
@@ -162,22 +195,81 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
     reader.readAsDataURL(file);
   };
 
+  // Gallery Management
   const handleSelectSuggestedPhoto = (photoUrl: string) => {
     setFormImage(photoUrl);
-    showNotification('Foto sugerida aplicada ao formulário!');
+    showNotification('Foto selecionada e aplicada ao formulário!');
     setActiveTab('form');
+  };
+
+  const handleDeleteGalleryPhoto = (photoId: string, label: string) => {
+    if (window.confirm(`Deseja remover a foto "${label}" da galeria?`)) {
+      const updated = galleryPhotos.filter(p => p.id !== photoId);
+      setGalleryPhotos(updated);
+      localStorage.setItem('popidi_gallery_photos', JSON.stringify(updated));
+      showNotification(`Foto "${label}" excluída da galeria.`);
+    }
+  };
+
+  const handleAddCustomPhotoToGallery = () => {
+    if (!newPhotoUrl.trim()) {
+      alert('Por favor informe a URL da foto ou faça o upload.');
+      return;
+    }
+    const newPhoto: SuggestedPhoto = {
+      id: `photo-custom-${Date.now()}`,
+      label: newPhotoLabel.trim() || 'Foto de Lanche',
+      url: newPhotoUrl.trim(),
+      category: newPhotoCategory,
+    };
+    const updated = [newPhoto, ...galleryPhotos];
+    setGalleryPhotos(updated);
+    localStorage.setItem('popidi_gallery_photos', JSON.stringify(updated));
+    setNewPhotoUrl('');
+    setNewPhotoLabel('');
+    showNotification('Nova foto adicionada à galeria com sucesso!');
+  };
+
+  const handleCustomPhotoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 3 * 1024 * 1024) {
+      alert('A imagem é muito pesada (máx 3MB).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (loadEvt) => {
+      const dataUrl = loadEvt.target?.result as string;
+      if (dataUrl) {
+        setNewPhotoUrl(dataUrl);
+        if (!newPhotoLabel.trim()) {
+          setNewPhotoLabel(file.name.replace(/\.[^/.]+$/, ''));
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRestoreGalleryDefaults = () => {
+    if (window.confirm('Deseja restaurar todas as fotos oficiais padrão da galeria?')) {
+      setGalleryPhotos(suggestedMenuPhotos);
+      localStorage.removeItem('popidi_gallery_photos');
+      showNotification('Galeria de fotos restaurada para o padrão oficial.');
+    }
   };
 
   const handleSaveFormItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) {
-      alert('Por favor informe o nome do item/pastel.');
+      alert('Por favor informe o nome do lanche ou produto.');
       return;
     }
 
     const priceNum = parseFloat(formPrice.replace(',', '.'));
     if (isNaN(priceNum) || priceNum <= 0) {
-      alert('Por favor informe um preço válido.');
+      alert('Por favor informe um preço de venda válido.');
       return;
     }
 
@@ -189,7 +281,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
       .map(i => i.trim())
       .filter(i => i.length > 0);
 
-    const itemId = editingId || `item-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const itemId = editingId || `lanche-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
     const newItem: MenuItem = {
       id: itemId,
@@ -198,9 +290,8 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
       price: priceNum,
       promotionalPrice: promoNum && !isNaN(promoNum) ? promoNum : undefined,
       description: formDescription.trim(),
-      image: formImage.trim() || 'https://images.unsplash.com/photo-1608897013039-887f21d8c804?auto=format&fit=crop&w=800&q=80',
+      image: formImage.trim() || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80',
       badge: formBadge !== 'Nenhum' ? (formBadge as any) : undefined,
-      sizeTag: formSizeTag.trim() || undefined,
       prepTimeMinutes: prepMinutes,
       ingredients: ingredientsList.length > 0 ? ingredientsList : [formName.trim()],
       available: formAvailable,
@@ -210,21 +301,21 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
     setIsSaving(true);
     try {
       await saveMenuItem(newItem);
-      showNotification(`Item "${newItem.name}" salvo e sincronizado em tempo real!`);
+      showNotification(`Lanche "${newItem.name}" salvo e sincronizado em tempo real!`);
       setActiveTab('catalog');
     } catch (err) {
-      alert('Erro ao salvar item no banco de dados.');
+      alert('Erro ao salvar lanche no banco de dados.');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteItem = async (item: MenuItem) => {
-    if (window.confirm(`Tem certeza que deseja excluir o item "${item.name}" do cardápio?`)) {
+    if (window.confirm(`Tem certeza que deseja excluir o lanche "${item.name}" do cardápio?`)) {
       setIsSaving(true);
       try {
         await deleteMenuItem(item.id);
-        showNotification(`Item "${item.name}" removido com sucesso.`);
+        showNotification(`Lanche "${item.name}" removido com sucesso.`);
       } catch (e) {
         alert('Erro ao excluir item.');
       } finally {
@@ -265,7 +356,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
       await updateStoreSettings(updatedSettings);
       showNotification('Informações das seções salvas e atualizadas para todos os clientes!');
     } catch (err) {
-      alert('Erro ao salvar informações da loja no Firestore.');
+      alert('Erro ao salvar informações no banco de dados.');
     } finally {
       setIsSaving(false);
     }
@@ -273,14 +364,14 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
 
   const handleRestoreDefaults = async () => {
     const confirmation = window.prompt(
-      'Atenção: Isso irá recarregar todos os mais de 20 pastéis, lanches e bebidas padrão do cardápio oficial no banco de dados.\n\nDigite "RESTAURAR" para confirmar:'
+      'Atenção: Isso irá recarregar todos os smash burgers, burgers artesanais, porções, chopps e bebidas padrão do cardápio oficial no banco de dados.\n\nDigite "RESTAURAR" para confirmar:'
     );
 
     if (confirmation === 'RESTAURAR') {
       setIsSaving(true);
       try {
         await resetMenuToDefaults();
-        showNotification('Catálogo padrão com todos os mais de 20 itens restaurado com sucesso!');
+        showNotification('Catálogo oficial de lanches e bebidas restaurado com sucesso!');
         setActiveTab('catalog');
       } catch (err) {
         alert('Erro ao restaurar catálogo padrão.');
@@ -294,8 +385,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
   const filteredItems = menuItems.filter(item => {
     const matchesSearch =
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.sizeTag && item.sizeTag.toLowerCase().includes(searchTerm.toLowerCase()));
+      item.description.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCat =
       selectedCategoryFilter === 'todos' || item.category === selectedCategoryFilter;
@@ -303,9 +393,9 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
     return matchesSearch && matchesCat;
   });
 
-  const photoCategories = ['Todos', 'Pastéis Salgados', 'Pastéis Doces', 'Burgers & Smash', 'Choperia & Chopp', 'Porções & Petiscos', 'Sobremesas'];
+  const photoCategories = ['Todos', 'Burgers & Smash', 'Porções & Petiscos', 'Choperia & Chopp', 'Sobremesas', 'Combos'];
 
-  const filteredPhotos = suggestedMenuPhotos.filter(photo => {
+  const filteredPhotos = galleryPhotos.filter(photo => {
     if (photoCategoryFilter === 'Todos') return true;
     return photo.category === photoCategoryFilter;
   });
@@ -334,7 +424,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                 </span>
               </div>
               <p className="text-xs text-zinc-400 hidden sm:block">
-                Cadastre novos pastéis, altere fotos/preços, edite textos das seções e restaure o cardápio padrão a qualquer momento.
+                Cadastre novos lanches, altere fotos/preços, edite textos das seções e restaure o cardápio padrão a qualquer momento.
               </p>
             </div>
           </div>
@@ -346,7 +436,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
               className="px-3.5 py-2 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-black font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-yellow-500/20 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
-              <span className="hidden sm:inline">Cadastrar Novo Item</span>
+              <span className="hidden sm:inline">Cadastrar Novo Lanche</span>
               <span className="sm:hidden">Novo</span>
             </button>
 
@@ -381,7 +471,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>Cardápio Completo ({menuItems.length})</span>
+            <span>Cardápio de Lanches ({menuItems.length})</span>
           </button>
 
           <button
@@ -394,7 +484,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
             }`}
           >
             <Plus className="w-4 h-4" />
-            <span>{editingId ? 'Editar Item' : 'Cadastrar Novo Item/Pastel'}</span>
+            <span>{editingId ? 'Editar Lanche' : 'Cadastrar Novo Lanche'}</span>
           </button>
 
           <button
@@ -407,7 +497,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
             }`}
           >
             <ImageIcon className="w-4 h-4" />
-            <span>Galeria de Fotos Sugeridas</span>
+            <span>Galeria de Fotos Sugeridas ({galleryPhotos.length})</span>
           </button>
 
           <button
@@ -451,7 +541,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                     type="text"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    placeholder="Buscar por nome, pastel 20cm, ingrediente..."
+                    placeholder="Buscar por nome do lanche, ingrediente..."
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-yellow-500"
                   />
                 </div>
@@ -476,7 +566,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                     className="px-3 py-2.5 bg-yellow-500/15 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/25 rounded-xl text-xs font-black flex items-center gap-1.5 shrink-0 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Cadastrar Item</span>
+                    <span>Cadastrar Lanche</span>
                   </button>
                 </div>
               </div>
@@ -485,7 +575,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
               {filteredItems.length === 0 ? (
                 <div className="py-16 text-center text-zinc-500 bg-zinc-950/40 rounded-3xl border border-zinc-900 flex flex-col items-center justify-center">
                   <Layers className="w-12 h-12 mb-3 text-zinc-600" />
-                  <p className="text-sm font-bold text-zinc-300">Nenhum item encontrado no filtro atual.</p>
+                  <p className="text-sm font-bold text-zinc-300">Nenhum lanche encontrado no filtro atual.</p>
                   <button
                     type="button"
                     onClick={() => { setSearchTerm(''); setSelectedCategoryFilter('todos'); }}
@@ -513,14 +603,9 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
                             onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1608897013039-887f21d8c804?auto=format&fit=crop&w=400&q=80';
+                              (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400&q=80';
                             }}
                           />
-                          {item.sizeTag && (
-                            <span className="absolute bottom-1 right-1 bg-black/80 text-yellow-400 font-mono text-[9px] font-black px-1.5 py-0.5 rounded">
-                              {item.sizeTag}
-                            </span>
-                          )}
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -600,7 +685,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
             </div>
           )}
 
-          {/* TAB 2: CADASTRAR OU EDITAR ITEM */}
+          {/* TAB 2: CADASTRAR OU EDITAR LANCHE */}
           {activeTab === 'form' && (
             <form onSubmit={handleSaveFormItem} className="max-w-3xl mx-auto space-y-5 text-left">
               <div className="bg-zinc-950 p-4 sm:p-5 rounded-2xl border border-yellow-500/30 space-y-4">
@@ -608,34 +693,34 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-yellow-400" />
                     <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-wider">
-                      {editingId ? `Editando: ${formName || 'Item'}` : 'Cadastrar Novo Item / Pastel no Cardápio'}
+                      {editingId ? `Editando: ${formName || 'Lanche'}` : 'Cadastrar Novo Lanche no Cardápio'}
                     </h3>
                   </div>
                   {editingId && (
                     <button
                       type="button"
                       onClick={handleStartCreateNew}
-                      className="text-xs text-yellow-400 hover:underline font-bold"
+                      className="text-xs text-yellow-400 hover:underline font-bold cursor-pointer"
                     >
-                      + Criar Novo em vez disso
+                      + Cadastrar Novo Lanche
                     </button>
                   )}
                 </div>
 
-                {/* 2-Column Form Fields */}
+                {/* Form Fields */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   
                   {/* Nome do Item */}
                   <div className="sm:col-span-2">
                     <label className="text-xs font-bold text-zinc-300 block mb-1">
-                      Nome do Pastel ou Produto *
+                      Nome do Lanche ou Produto *
                     </label>
                     <input
                       type="text"
                       required
                       value={formName}
                       onChange={e => setFormName(e.target.value)}
-                      placeholder="Ex: Pastel Especial de Carne Moída (20cm)"
+                      placeholder="Ex: Duplo Smash Melt Cheddar Artesanal"
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-yellow-500 font-bold"
                     />
                   </div>
@@ -650,29 +735,27 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                       onChange={e => setFormCategory(e.target.value as CategoryId)}
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-yellow-500 font-bold"
                     >
-                      <option value="pasteis-salgados">Pastéis Salgados (20cm / 30cm)</option>
-                      <option value="pasteis-doces">Pastéis Doces & Especiais</option>
                       <option value="smash">Smash Burgers</option>
                       <option value="artesanais">Burgers Artesanais</option>
-                      <option value="choperia">Choperia & Chopps</option>
-                      <option value="porcoes">Porções & Petiscos</option>
                       <option value="monster-especiais">Monsters & Especiais</option>
+                      <option value="porcoes">Porções & Petiscos</option>
+                      <option value="choperia">Choperia & Chopps</option>
                       <option value="combos">Combos Econômicos</option>
                       <option value="bebidas">Refrigerantes & Sucos</option>
                       <option value="sobremesas">Sobremesas & Shakes</option>
                     </select>
                   </div>
 
-                  {/* Etiqueta de Tamanho / Porção */}
+                  {/* Tempo de Preparo */}
                   <div>
                     <label className="text-xs font-bold text-zinc-300 block mb-1">
-                      Etiqueta de Tamanho / Medida (Ex: 20cm, 30cm, 500ml)
+                      Tempo de Preparo Estimado (minutos)
                     </label>
                     <input
-                      type="text"
-                      value={formSizeTag}
-                      onChange={e => setFormSizeTag(e.target.value)}
-                      placeholder="Ex: 20cm, 30cm, Individual, 400ml, Grande"
+                      type="number"
+                      value={formPrepTime}
+                      onChange={e => setFormPrepTime(e.target.value)}
+                      placeholder="15"
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-yellow-500"
                     />
                   </div>
@@ -689,7 +772,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                         required
                         value={formPrice}
                         onChange={e => setFormPrice(e.target.value)}
-                        placeholder="16.90"
+                        placeholder="24.90"
                         className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-3 py-3 text-xs text-yellow-400 font-black focus:outline-none focus:border-yellow-500"
                       />
                     </div>
@@ -706,14 +789,14 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                         type="text"
                         value={formPromotionalPrice}
                         onChange={e => setFormPromotionalPrice(e.target.value)}
-                        placeholder="Ex: 19.90 (se estiver com desconto)"
+                        placeholder="Ex: 29.90 (se estiver com desconto)"
                         className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-3 py-3 text-xs text-zinc-300 focus:outline-none focus:border-yellow-500"
                       />
                     </div>
                   </div>
 
                   {/* Selo Promocional */}
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="text-xs font-bold text-zinc-300 block mb-1">
                       Selo de Destaque / Badge
                     </label>
@@ -728,35 +811,21 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                       <option value="Destaque">Destaque</option>
                       <option value="Chef Especial">Chef Especial</option>
                       <option value="Promoção">Promoção</option>
-                      <option value="Crocante">Crocante</option>
-                      <option value="Especial 20cm">Especial 20cm</option>
+                      <option value="Smash Especial">Smash Especial</option>
+                      <option value="Burger Artesanal">Burger Artesanal</option>
                     </select>
-                  </div>
-
-                  {/* Tempo de Preparo */}
-                  <div>
-                    <label className="text-xs font-bold text-zinc-300 block mb-1">
-                      Tempo de Preparo Estimado (minutos)
-                    </label>
-                    <input
-                      type="number"
-                      value={formPrepTime}
-                      onChange={e => setFormPrepTime(e.target.value)}
-                      placeholder="12"
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-yellow-500"
-                    />
                   </div>
 
                   {/* Descrição Detalhada */}
                   <div className="sm:col-span-2">
                     <label className="text-xs font-bold text-zinc-300 block mb-1">
-                      Descrição do Item para os Clientes
+                      Descrição do Lanche para os Clientes
                     </label>
                     <textarea
                       rows={2}
                       value={formDescription}
                       onChange={e => setFormDescription(e.target.value)}
-                      placeholder="Ex: Massa fininha e sequinha frita na hora, recheada com carne moída de primeira temperada com cheiro verde, azeitonas e ovos cozidos."
+                      placeholder="Ex: Pão brioche amanteigado selado na chapa, 2 smash burgers 90g com crostinha na brasa, cheddar melt cremoso, bacon crocante e maionese secreta da casa."
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-200 focus:outline-none focus:border-yellow-500"
                     />
                   </div>
@@ -770,7 +839,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                       type="text"
                       value={formIngredientsInput}
                       onChange={e => setFormIngredientsInput(e.target.value)}
-                      placeholder="Ex: Massa Crocante, Carne Moída Temperada, Azeitonas Chilenas, Ovo Cozido"
+                      placeholder="Ex: Pão Brioche, 2x Smash 90g, American Cheese, Molho Especial, Bacon Crocante"
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-200 focus:outline-none focus:border-yellow-500"
                     />
                   </div>
@@ -778,7 +847,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                   {/* Foto do Produto & Upload */}
                   <div className="sm:col-span-2 space-y-3 pt-2 border-t border-zinc-800">
                     <label className="text-xs font-bold text-zinc-300 block">
-                      Foto do Item (URL, Upload ou Galeria Sugerida)
+                      Foto do Lanche (URL, Upload ou Escolha da Galeria)
                     </label>
 
                     <div className="flex flex-col sm:flex-row gap-4 items-start">
@@ -791,7 +860,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
                             onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1608897013039-887f21d8c804?auto=format&fit=crop&w=400&q=80';
+                              (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400&q=80';
                             }}
                           />
                         ) : (
@@ -835,7 +904,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                             className="px-3 py-2 bg-yellow-500/15 hover:bg-yellow-500/25 border border-yellow-500/40 text-yellow-300 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
                           >
                             <ImageIcon className="w-3.5 h-3.5" />
-                            <span>Escolher da Galeria Sugerida ({suggestedMenuPhotos.length} fotos)</span>
+                            <span>Escolher da Galeria Sugerida ({galleryPhotos.length} fotos)</span>
                           </button>
                         </div>
                       </div>
@@ -847,13 +916,13 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                     <div>
                       <span className="text-xs font-bold text-white block">Status de Disponibilidade</span>
                       <span className="text-[11px] text-zinc-400">
-                        {formAvailable ? 'O item está ativo e pode ser comprado pelos clientes.' : 'O item está marcado como esgotado no cardápio.'}
+                        {formAvailable ? 'O lanche está ativo e pode ser comprado pelos clientes.' : 'O lanche está marcado como esgotado no cardápio.'}
                       </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setFormAvailable(!formAvailable)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         formAvailable ? 'bg-emerald-500 text-black' : 'bg-red-950 text-red-400 border border-red-800'
                       }`}
                     >
@@ -868,7 +937,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                   <button
                     type="button"
                     onClick={() => setActiveTab('catalog')}
-                    className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl text-xs font-bold transition-colors"
+                    className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
                   >
                     Cancelar
                   </button>
@@ -886,7 +955,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                     ) : (
                       <>
                         <Check className="w-4 h-4 stroke-[3]" />
-                        <span>{editingId ? 'Atualizar Item no Cardápio' : 'Salvar Novo Item (Tempo Real)'}</span>
+                        <span>{editingId ? 'Atualizar Lanche no Cardápio' : 'Salvar Novo Lanche (Tempo Real)'}</span>
                       </>
                     )}
                   </button>
@@ -895,27 +964,108 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
             </form>
           )}
 
-          {/* TAB 3: GALERIA DE FOTOS SUGERIDAS */}
+          {/* TAB 3: GALERIA DE FOTOS SUGERIDAS & GERENCIADOR */}
           {activeTab === 'photos' && (
-            <div className="space-y-4">
-              <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h3 className="font-black text-white text-sm flex items-center gap-2">
-                    <ImageIcon className="w-4 h-4 text-yellow-400" />
-                    Fotos em Alta Resolução Sugeridas para Pastéis, Lanches e Bebidas
-                  </h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    Clique em qualquer foto para aplicá-la diretamente no formulário de cadastro/edição.
-                  </p>
+            <div className="space-y-5">
+              
+              {/* Adicionar Nova Foto à Galeria & Controles */}
+              <div className="bg-zinc-950 p-4 sm:p-5 rounded-2xl border border-zinc-800 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
+                  <div>
+                    <h3 className="font-black text-white text-sm flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-yellow-400" />
+                      Galeria de Fotos em Alta Resolução para Lanches & Bebidas
+                    </h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      Clique em qualquer foto para aplicá-la ao formulário, adicione novas fotos ou exclua fotos indesejadas.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleRestoreGalleryDefaults}
+                      className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      title="Restaurar Fotos Padrão"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Restaurar Padrão</span>
+                    </button>
+                  </div>
                 </div>
 
+                {/* Form to Add New Photo to Gallery */}
+                <div className="p-3.5 bg-zinc-900/60 rounded-xl border border-zinc-800/80 space-y-3">
+                  <span className="text-xs font-bold text-white block flex items-center gap-1.5">
+                    <Plus className="w-3.5 h-3.5 text-yellow-400" />
+                    Adicionar Nova Foto à Galeria:
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                    <div className="sm:col-span-4">
+                      <label className="text-[11px] font-bold text-zinc-400 block mb-1">Título / Nome da Foto</label>
+                      <input
+                        type="text"
+                        value={newPhotoLabel}
+                        onChange={e => setNewPhotoLabel(e.target.value)}
+                        placeholder="Ex: Smash Bacon Especial"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-yellow-500"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label className="text-[11px] font-bold text-zinc-400 block mb-1">Categoria</label>
+                      <select
+                        value={newPhotoCategory}
+                        onChange={e => setNewPhotoCategory(e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-yellow-500 font-bold"
+                      >
+                        <option value="Burgers & Smash">Burgers & Smash</option>
+                        <option value="Porções & Petiscos">Porções & Petiscos</option>
+                        <option value="Choperia & Chopp">Choperia & Chopp</option>
+                        <option value="Sobremesas">Sobremesas</option>
+                        <option value="Combos">Combos</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label className="text-[11px] font-bold text-zinc-400 block mb-1">URL ou Upload</label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={newPhotoUrl}
+                          onChange={e => setNewPhotoUrl(e.target.value)}
+                          placeholder="https://..."
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-yellow-500"
+                        />
+                        <label className="p-2 bg-zinc-800 hover:bg-zinc-700 text-yellow-400 rounded-xl border border-zinc-700 cursor-pointer shrink-0" title="Carregar do dispositivo">
+                          <Upload className="w-3.5 h-3.5" />
+                          <input type="file" accept="image/*" className="hidden" onChange={handleCustomPhotoFileUpload} />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <button
+                        type="button"
+                        onClick={handleAddCustomPhotoToGallery}
+                        className="w-full py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs rounded-xl flex items-center justify-center gap-1 cursor-pointer transition-all shadow"
+                      >
+                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Adicionar</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter categories */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                   {photoCategories.map(cat => (
                     <button
                       key={cat}
                       type="button"
                       onClick={() => setPhotoCategoryFilter(cat)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
                         photoCategoryFilter === cat
                           ? 'bg-yellow-500 text-black font-black'
                           : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
@@ -927,12 +1077,13 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                 </div>
               </div>
 
+              {/* Photos Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
                 {filteredPhotos.map(photo => (
                   <div
                     key={photo.id}
                     onClick={() => handleSelectSuggestedPhoto(photo.url)}
-                    className="group bg-zinc-950 border border-zinc-800 hover:border-yellow-500/80 rounded-2xl overflow-hidden cursor-pointer transition-all hover:scale-[1.02] shadow-sm flex flex-col"
+                    className="group bg-zinc-950 border border-zinc-800 hover:border-yellow-500/80 rounded-2xl overflow-hidden cursor-pointer transition-all hover:scale-[1.02] shadow-sm flex flex-col relative"
                   >
                     <div className="aspect-video w-full overflow-hidden bg-zinc-900 relative">
                       <img
@@ -944,13 +1095,27 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                       <span className="absolute top-2 left-2 bg-black/80 text-[10px] font-bold text-yellow-400 px-2 py-0.5 rounded-md">
                         {photo.category}
                       </span>
+
+                      {/* Excluir Foto Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteGalleryPhoto(photo.id, photo.label);
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-black/85 hover:bg-red-600 text-zinc-300 hover:text-white rounded-lg transition-colors z-10"
+                        title="Excluir esta foto da galeria"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
+
                     <div className="p-2.5 flex-1 flex flex-col justify-between">
                       <p className="text-xs font-black text-zinc-200 group-hover:text-yellow-400 line-clamp-1">
                         {photo.label}
                       </p>
                       <span className="text-[10px] text-yellow-500/80 font-bold mt-1 inline-flex items-center gap-1">
-                        Usar esta foto <ChevronRight className="w-3 h-3" />
+                        Usar no Lanche <ChevronRight className="w-3 h-3" />
                       </span>
                     </div>
                   </div>
@@ -1300,20 +1465,20 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                   </div>
                   <div>
                     <h3 className="text-base font-black text-white uppercase tracking-tight">
-                      Botão de Segurança: Recarregar Cardápio Padrão Oficial
+                      Botão de Segurança: Recarregar Cardápio de Lanches Padrão Oficial
                     </h3>
                     <p className="text-xs text-zinc-400">
-                      Restaura mais de 20 pastéis salgados, pastéis doces, smash burgers, chopps, porções e sobremesas oficiais.
+                      Restaura todos os smash burgers, burgers artesanais, porções, chopps e sobremesas oficiais.
                     </p>
                   </div>
                 </div>
 
                 <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-900 text-xs text-zinc-300 space-y-2">
                   <p>
-                    Use esta ferramenta se você quiser restaurar instantaneamente todo o catálogo original completo, corrigindo eventuais exclusões acidentais.
+                    Use esta ferramenta se você quiser restaurar instantaneamente todo o catálogo original de lanches completo, corrigindo eventuais exclusões acidentais.
                   </p>
                   <p className="text-amber-400 font-bold">
-                    ✓ Inclui pastéis salgados crocantes (Carne, Queijo, Pizza, Frango com Catupiry, Palmito 20cm), pastéis doces, lanches artesanais, porções e bebidas.
+                    ✓ Inclui smash burgers suculentos (Pó Pi Di Smash, Double Bacon, Smash Salad), burgers artesanais de primeira (X-Tudo Campeão, Monster BBQ, Picanha Artesanal), porções de batata rústica, chopps artesanais e bebidas.
                   </p>
                 </div>
 
@@ -1324,7 +1489,7 @@ export const MenuAndContentEditorModal: React.FC<MenuAndContentEditorModalProps>
                   className="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white font-black text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-red-950/50 transition-all cursor-pointer"
                 >
                   <RefreshCw className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} />
-                  <span>Recarregar Todos os 20+ Pastéis e Itens Padrão Agora</span>
+                  <span>Recarregar Todos os Lanches e Itens Padrão Agora</span>
                 </button>
               </div>
             </div>

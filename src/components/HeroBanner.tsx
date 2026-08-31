@@ -83,7 +83,7 @@ export const HeroBanner: React.FC = () => {
 
             {/* Description */}
             <p className="text-base sm:text-lg text-zinc-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              {storeSettings.heroSubheadline || 'Pães brioche selados na manteiga, carnes nobres selecionadas moídas diariamente na brasa, pastéis crocantes, chopp artesanal tirado no ponto certo e o autêntico X-Tudo Especial com sabor inconfundível.'}
+              {storeSettings.heroSubheadline || 'Pães brioche selados na manteiga, carnes nobres selecionadas moídas diariamente na brasa, smash burgers crocantes, chopp artesanal tirado no ponto certo e o autêntico X-Tudo Especial com sabor inconfundível.'}
             </p>
 
             {/* CTAs */}

@@ -31,13 +31,11 @@ interface MenuSectionProps {
 }
 
 const categoryIcons: Record<string, React.ReactNode> = {
-  'pasteis-salgados': <UtensilsCrossed className="w-4 h-4 text-yellow-400" />,
-  'pasteis-doces': <Sparkles className="w-4 h-4 text-pink-400" />,
   smash: <Sparkles className="w-4 h-4 text-emerald-400" />,
   artesanais: <UtensilsCrossed className="w-4 h-4 text-yellow-400" />,
-  choperia: <Beer className="w-4 h-4 text-amber-400" />,
-  porcoes: <Layers className="w-4 h-4 text-fuchsia-400" />,
   'monster-especiais': <Crown className="w-4 h-4 text-yellow-400" />,
+  porcoes: <Layers className="w-4 h-4 text-fuchsia-400" />,
+  choperia: <Beer className="w-4 h-4 text-amber-400" />,
   combos: <Package className="w-4 h-4 text-emerald-400" />,
   bebidas: <CupSoda className="w-4 h-4 text-cyan-400" />,
   sobremesas: <IceCream className="w-4 h-4 text-pink-400" />,
@@ -134,20 +132,15 @@ export const MenuSection: React.FC<MenuSectionProps> = ({
             </div>
           )}
 
-          {/* Size Tag & Prep Time */}
-          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1">
-            {item.sizeTag && (
-              <span className="bg-yellow-400 text-black font-black font-mono text-[9px] px-1.5 py-0.5 rounded shadow">
-                {item.sizeTag}
-              </span>
-            )}
-            {item.prepTimeMinutes && (
+          {/* Prep Time */}
+          {item.prepTimeMinutes && (
+            <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1">
               <div className="bg-black/80 backdrop-blur-sm text-zinc-300 text-[10px] font-bold px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1">
                 <Clock className="w-2.5 h-2.5 text-yellow-400" />
                 <span>{item.prepTimeMinutes}m</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Sold out overlay */}
           {!item.available && (

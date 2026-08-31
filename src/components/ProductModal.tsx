@@ -223,11 +223,6 @@ export const ProductModal: React.FC<ProductModalProps> = ({ item: propItem, onCl
                     {formatBRL(item.price)}
                   </span>
                 )}
-                {item.sizeTag && (
-                  <span className="text-xs font-black uppercase bg-yellow-400 text-black px-2.5 py-0.5 rounded-full font-mono shadow-sm">
-                    {item.sizeTag}
-                  </span>
-                )}
               </div>
               <p className="text-sm text-zinc-300 mt-2.5 leading-relaxed">
                 {item.description}

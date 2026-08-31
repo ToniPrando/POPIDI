@@ -101,63 +101,11 @@ export interface SuggestedPhoto {
 }
 
 export const suggestedMenuPhotos: SuggestedPhoto[] = [
-  // Pastéis Salgados
-  {
-    id: 'pastel-carne',
-    category: 'Pastéis Salgados',
-    label: 'Pastel de Carne Especial Crocante',
-    url: 'https://images.unsplash.com/photo-1608897013039-887f21d8c804?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    id: 'pastel-queijo',
-    category: 'Pastéis Salgados',
-    label: 'Pastel de Queijo Puxa-Puxa',
-    url: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    id: 'pastel-pizza',
-    category: 'Pastéis Salgados',
-    label: 'Pastel Pizza Especial com Orégano',
-    url: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    id: 'pastel-frango',
-    category: 'Pastéis Salgados',
-    label: 'Pastel Frango com Catupiry',
-    url: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    id: 'pastel-palmito',
-    category: 'Pastéis Salgados',
-    label: 'Pastel de Palmito Cremoso',
-    url: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=800&q=80',
-  },
-
-  // Pastéis Doces
-  {
-    id: 'pastel-nutella-morango',
-    category: 'Pastéis Doces',
-    label: 'Pastel Nutella com Morangos Frescos',
-    url: 'https://images.unsplash.com/photo-1579954115545-a95591f28bfc?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    id: 'pastel-doce-leite',
-    category: 'Pastéis Doces',
-    label: 'Pastel Doce de Leite com Canela',
-    url: 'https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    id: 'pastel-romeu-julieta',
-    category: 'Pastéis Doces',
-    label: 'Pastel Romeu & Julieta (Goiabada c/ Queijo)',
-    url: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=800&q=80',
-  },
-
-  // Smash & Burgers Artesanais
+  // Lanches & Smash Burgers
   {
     id: 'burger-smash-classic',
     category: 'Burgers & Smash',
-    label: 'Smash Burger Crocante na Chapa',
+    label: 'Smash Burger Prensado com Queijo',
     url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80',
   },
   {
@@ -169,14 +117,32 @@ export const suggestedMenuPhotos: SuggestedPhoto[] = [
   {
     id: 'burger-xtudo',
     category: 'Burgers & Smash',
-    label: 'O Famoso X-Tudo Tradicional',
+    label: 'O Famoso X-Tudo Tradicional Completo',
     url: 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'burger-duplo-cheddar',
     category: 'Burgers & Smash',
-    label: 'Duplo Smash Cheddar Inglês Melt',
+    label: 'Duplo Smash Cheddar Melt Cremoso',
     url: 'https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    id: 'burger-chicken-crispy',
+    category: 'Burgers & Smash',
+    label: 'Chicken Burger Crocante Empanado',
+    url: 'https://images.unsplash.com/photo-1625813506062-0aeb1d7a094b?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    id: 'burger-costela-grelhado',
+    category: 'Burgers & Smash',
+    label: 'Burger de Costela Nobre na Brasa',
+    url: 'https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    id: 'burger-monster-onion',
+    category: 'Burgers & Smash',
+    label: 'Monster Burger com Onion Rings',
+    url: 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?auto=format&fit=crop&w=800&q=80',
   },
 
   // Choperia & Bebidas
@@ -241,97 +207,6 @@ export const suggestedMenuPhotos: SuggestedPhoto[] = [
 ];
 
 export const initialMenuItems: MenuItem[] = [
-  // --- 0. PASTÉIS SALGADOS CROCANTES (20cm / 30cm) ---
-  {
-    id: 'pastel-carne-especial-20cm',
-    name: 'Pastel Especial de Carne Moída (20cm)',
-    description: 'Massa artesanal fininha e sequinha frita na hora, recheada com carne moída de primeira bem temperada, azeitonas chilenas picadas e ovos cozidos.',
-    price: 16.9,
-    category: 'pasteis-salgados',
-    badge: 'Mais Vendido',
-    sizeTag: '20cm',
-    image: 'https://images.unsplash.com/photo-1608897013039-887f21d8c804?auto=format&fit=crop&w=800&q=80',
-    ingredients: ['Massa Crocante Sequinha', 'Carne Moída Temperada', 'Azeitonas Pretas', 'Ovo Cozido', 'Cheiro Verde'],
-    available: true,
-    prepTimeMinutes: 12,
-  },
-  {
-    id: 'pastel-queijo-puxa-20cm',
-    name: 'Pastel de Queijo Puxa-Puxa (20cm)',
-    description: 'Generosa porção de queijo mussarela especial e queijo prato derretidos com toque suave de orégano. Super crocante e sequinho.',
-    price: 15.9,
-    category: 'pasteis-salgados',
-    badge: 'Destaque',
-    sizeTag: '20cm',
-    image: 'https://images.unsplash.com/photo-1541592106381-b31e9677c0e5?auto=format&fit=crop&w=800&q=80',
-    ingredients: ['Massa Tradicional Crocante', 'Mussarela Especial', 'Queijo Prato Derretido', 'Orégano'],
-    available: true,
-    prepTimeMinutes: 10,
-  },
-  {
-    id: 'pastel-pizza-especial-20cm',
-    name: 'Pastel Pizza Suprema (20cm)',
-    description: 'Mussarela derretida, presunto royale fatiado, rodelas de tomate fresco, azeitonas e bastante orégano na massa crocante.',
-    price: 17.5,
-    category: 'pasteis-salgados',
-    sizeTag: '20cm',
-    image: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80',
-    ingredients: ['Mussarela', 'Presunto Royale', 'Tomate Fresco', 'Orégano', 'Azeitonas'],
-    available: true,
-    prepTimeMinutes: 12,
-  },
-  {
-    id: 'pastel-frango-catupiry-20cm',
-    name: 'Pastel Frango com Catupiry Legítimo (20cm)',
-    description: 'Peito de frango desfiado suculento refogado com tempero especial da casa e muito Catupiry original cremoso.',
-    price: 18.0,
-    category: 'pasteis-salgados',
-    badge: 'Mais Vendido',
-    sizeTag: '20cm',
-    image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80',
-    ingredients: ['Frango Desfiado', 'Catupiry Legítimo', 'Ervas Finas', 'Milho Verde Suave'],
-    available: true,
-    prepTimeMinutes: 12,
-  },
-  {
-    id: 'pastel-palmito-cremoso-20cm',
-    name: 'Pastel de Palmito Nobre Cremoso (20cm)',
-    description: 'Palmito nobre macio picadinho refogado na manteiga com ervas finas e creme de queijo suave.',
-    price: 17.9,
-    category: 'pasteis-salgados',
-    sizeTag: '20cm',
-    image: 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=800&q=80',
-    ingredients: ['Palmito Nobre Picado', 'Creme de Queijo', 'Ervas Finas', 'Azeite'],
-    available: true,
-    prepTimeMinutes: 12,
-  },
-
-  // --- PASTÉIS DOCES ---
-  {
-    id: 'pastel-nutella-morango-20cm',
-    name: 'Pastel Doce de Nutella com Morango (20cm)',
-    description: 'Recheado com Nutella pura derretida e morangos frescos fatiados, polvilhado com açúcar de confeiteiro e canela.',
-    price: 19.5,
-    category: 'pasteis-doces',
-    badge: 'Destaque',
-    sizeTag: '20cm',
-    image: 'https://images.unsplash.com/photo-1579954115545-a95591f28bfc?auto=format&fit=crop&w=800&q=80',
-    ingredients: ['Massa Doce Crocante', 'Nutella Original Pura', 'Morangos Frescos', 'Açúcar de Confeiteiro'],
-    available: true,
-    prepTimeMinutes: 10,
-  },
-  {
-    id: 'pastel-doce-leite-canela-20cm',
-    name: 'Pastel Doce de Leite com Canela (20cm)',
-    description: 'Doce de leite artesanal cremoso bem quentinho, envolto na massa sequinha e finalizado com açúcar e canela.',
-    price: 16.5,
-    category: 'pasteis-doces',
-    sizeTag: '20cm',
-    image: 'https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=800&q=80',
-    ingredients: ['Doce de Leite Artesanal', 'Canela em Pó', 'Açúcar'],
-    available: true,
-    prepTimeMinutes: 10,
-  },
   // --- 1. SMASH BURGERS ---
   {
     id: 'smash-classic',
@@ -758,14 +633,12 @@ export const initialMenuItems: MenuItem[] = [
 ];
 
 export const menuCategories: { id: MenuItem['category'] | 'todos'; name: string; icon: string; description: string }[] = [
-  { id: 'todos', name: 'Todos os Itens', icon: 'Flame', description: 'Explore todas as nossas delícias' },
-  { id: 'pasteis-salgados', name: 'Pastéis Salgados 20cm', icon: 'Sparkles', description: 'Massa crocante sequinha e recheios generosos' },
-  { id: 'pasteis-doces', name: 'Pastéis Doces', icon: 'IceCream', description: 'Nutella com morango, doce de leite e delícias' },
+  { id: 'todos', name: 'Todos os Lanches', icon: 'Flame', description: 'Explore todas as nossas delícias' },
   { id: 'smash', name: 'Smash Burgers', icon: 'Sparkles', description: 'Prensados na chapa com crostinha crocante' },
   { id: 'artesanais', name: 'Burgers Artesanais', icon: 'UtensilsCrossed', description: 'Blends nobres 160g e combinações autorais' },
-  { id: 'choperia', name: 'Choperia & Chopps', icon: 'Beer', description: 'Chopp Pilsen, IPA, Vinho e Torres geladas' },
-  { id: 'porcoes', name: 'Porções & Petiscos', icon: 'Layers', description: 'Bolinhos de costela, fritas com cheddar e petiscos' },
   { id: 'monster-especiais', name: 'Monsters & Especiais', icon: 'Crown', description: 'Para os verdadeiros amantes de fartura' },
+  { id: 'porcoes', name: 'Porções & Petiscos', icon: 'Layers', description: 'Bolinhos de costela, fritas com cheddar e petiscos' },
+  { id: 'choperia', name: 'Choperia & Chopps', icon: 'Beer', description: 'Chopp Pilsen, IPA, Vinho e Torres geladas' },
   { id: 'combos', name: 'Combos Econômicos', icon: 'Package', description: 'Burger + Acompanhamento + Bebida' },
   { id: 'bebidas', name: 'Refrigerantes & Sucos', icon: 'CupSoda', description: 'Refrigerantes gelados e sucos naturais' },
   { id: 'sobremesas', name: 'Sobremesas & Shakes', icon: 'IceCream', description: 'Milkshakes cremosos e brownies' },

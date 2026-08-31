@@ -1,7 +1,5 @@
 export type CategoryId = 
   | 'todos'
-  | 'pasteis-salgados'
-  | 'pasteis-doces'
   | 'smash'
   | 'artesanais'
   | 'monster-especiais'
@@ -41,7 +39,6 @@ export interface MenuItem {
   category: CategoryId;
   image: string;
   badge?: 'Mais Vendido' | 'Novidade' | 'Destaque' | 'Chef Especial' | 'Promoção' | string;
-  sizeTag?: string; // ex: '20cm', '30cm', '300ml', '500ml', 'Grande', 'Individual'
   ingredients: string[];
   customizationGroups?: CustomizationOptionGroup[];
   available: boolean;
