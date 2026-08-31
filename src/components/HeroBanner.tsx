@@ -56,23 +56,34 @@ export const HeroBanner: React.FC = () => {
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
               <div className="inline-flex items-center gap-2 bg-fuchsia-950/60 border border-fuchsia-500/50 px-4 py-1.5 rounded-full text-xs font-black text-fuchsia-300 shadow-[0_0_15px_rgba(240,70,245,0.25)] backdrop-blur-sm">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shadow-[0_0_8px_#00ff66]" />
-                <span className="uppercase tracking-wider">O Autêntico Burger Artesanal & Chopp Gelado</span>
+                <span className="uppercase tracking-wider">
+                  {storeSettings.heroSpecialBadge || 'O Autêntico Burger Artesanal & Chopp Gelado'}
+                </span>
               </div>
 
               <div className="inline-flex items-center gap-1.5 bg-zinc-900/80 border border-zinc-800 px-3.5 py-1.5 rounded-full text-xs font-bold text-zinc-300">
                 <Clock className="w-3.5 h-3.5 text-yellow-400" />
-                <span>Preparo rápido: {storeSettings.estimatedPrepTimeMin}-{storeSettings.estimatedPrepTimeMax} min</span>
+                <span>Preparo rápido: {storeSettings.estimatedPrepTimeMin || 25}-{storeSettings.estimatedPrepTimeMax || 45} min</span>
               </div>
             </div>
 
+            {/* Announcement Banner if Active */}
+            {storeSettings.activeBannerAnnouncement && (
+              <div className="inline-block bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-black px-4 py-2 rounded-2xl shadow-sm text-left">
+                {storeSettings.activeBannerAnnouncement}
+              </div>
+            )}
+
             {/* Main Headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-5xl xl:text-6xl font-black text-white tracking-tight leading-[1.12] text-center">
-              BURGER ARTESANAL NA BRASA & <span className="neon-text-pink font-serif italic">CHOPP TRINCANDO</span> DE GELADO.
+            <h1 className="text-3xl sm:text-5xl lg:text-5xl xl:text-6xl font-black text-white tracking-tight leading-[1.12] text-center lg:text-left">
+              {storeSettings.heroHeadline || (
+                <>BURGER ARTESANAL NA BRASA & <span className="neon-text-pink font-serif italic">CHOPP TRINCANDO</span> DE GELADO.</>
+              )}
             </h1>
 
             {/* Description */}
             <p className="text-base sm:text-lg text-zinc-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              Pães brioche selados na manteiga, carnes nobres selecionadas moídas diariamente na brasa, chopp artesanal tirado no ponto certo e o autêntico <strong className="neon-text-yellow font-bold">X-Tudo Especial</strong> com sabor inconfundível.
+              {storeSettings.heroSubheadline || 'Pães brioche selados na manteiga, carnes nobres selecionadas moídas diariamente na brasa, pastéis crocantes, chopp artesanal tirado no ponto certo e o autêntico X-Tudo Especial com sabor inconfundível.'}
             </p>
 
             {/* CTAs */}

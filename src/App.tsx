@@ -15,6 +15,7 @@ import { AuthModal } from './components/AuthModal';
 import { LoyaltyClubModal } from './components/LoyaltyClubModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { StoreClosedModal } from './components/StoreClosedModal';
+import { MenuAndContentEditorModal } from './components/MenuAndContentEditorModal';
 import { Footer } from './components/Footer';
 import { CategoryId, MenuItem } from './types';
 
@@ -24,6 +25,8 @@ const MainAppContent: React.FC = () => {
     setSelectedProductForModal, 
     isLoyaltyOpen, 
     setIsLoyaltyOpen,
+    isMenuEditorOpen,
+    setIsMenuEditorOpen,
     activeCategory,
     setActiveCategory
   } = useCart();
@@ -116,6 +119,7 @@ const MainAppContent: React.FC = () => {
       <AuthModal />
       <AdminLoginModal />
       <AdminDashboard />
+      <MenuAndContentEditorModal isOpen={isMenuEditorOpen} onClose={() => setIsMenuEditorOpen(false)} />
       <StoreClosedModal />
     </div>
   );

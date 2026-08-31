@@ -95,7 +95,9 @@ export const AboutSection: React.FC = () => {
               </h2>
 
               <p className="text-sm sm:text-base text-zinc-300 leading-relaxed">
-                Na <strong>PO-PI-DI</strong>, cada hambúrguer é preparado com blend artesanal fresco prensado na chapa com perfeição, queijo derretido, bacon super crocante e pão brioche selado com manteiga pura. E para acompanhar, chopp artesanal tirado com colarinho cremoso e nossas porções lendárias.
+                {storeSettings.aboutStoryText || (
+                  <>Na <strong>PO-PI-DI</strong>, cada hambúrguer e pastel é preparado com blend artesanal fresco prensado na chapa com perfeição, queijo derretido, bacon super crocante e pão brioche selado com manteiga pura. E para acompanhar, chopp artesanal tirado com colarinho cremoso e nossas porções lendárias.</>
+                )}
               </p>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">

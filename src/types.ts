@@ -1,5 +1,7 @@
 export type CategoryId = 
   | 'todos'
+  | 'pasteis-salgados'
+  | 'pasteis-doces'
   | 'smash'
   | 'artesanais'
   | 'monster-especiais'
@@ -7,7 +9,8 @@ export type CategoryId =
   | 'choperia'
   | 'combos'
   | 'bebidas'
-  | 'sobremesas';
+  | 'sobremesas'
+  | (string & {});
 
 export interface ExtraOption {
   id: string;
@@ -37,11 +40,14 @@ export interface MenuItem {
   promotionalPrice?: number;
   category: CategoryId;
   image: string;
-  badge?: 'Mais Vendido' | 'Novidade' | 'Destaque' | 'Chef Especial' | 'Promoção';
+  badge?: 'Mais Vendido' | 'Novidade' | 'Destaque' | 'Chef Especial' | 'Promoção' | string;
+  sizeTag?: string; // ex: '20cm', '30cm', '300ml', '500ml', 'Grande', 'Individual'
   ingredients: string[];
   customizationGroups?: CustomizationOptionGroup[];
   available: boolean;
   prepTimeMinutes?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SelectedCustomization {
@@ -178,6 +184,23 @@ export interface StoreSettings {
   activeBannerAnnouncement?: string;
   adminPin?: string;
   adminPassword?: string;
+  
+  // Section Editable Content
+  heroSpecialBadge?: string;
+  heroHeadline?: string;
+  heroSubheadline?: string;
+  heroHighlightText?: string;
+  aboutSectionTitle?: string;
+  aboutSectionSubtitle?: string;
+  aboutStoryText?: string;
+  aboutCard1Title?: string;
+  aboutCard1Text?: string;
+  aboutCard2Title?: string;
+  aboutCard2Text?: string;
+  aboutCard3Title?: string;
+  aboutCard3Text?: string;
+  xtudoSpotlightTitle?: string;
+  xtudoSpotlightDescription?: string;
 }
 
 export interface Coupon {

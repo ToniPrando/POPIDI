@@ -205,7 +205,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({ item: propItem, onCl
               <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                 {item.name}
               </h2>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {item.promotionalPrice ? (
                   <>
                     <span className="text-zinc-500 line-through text-sm">
@@ -221,6 +221,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({ item: propItem, onCl
                 ) : (
                   <span className="text-2xl font-black text-yellow-400">
                     {formatBRL(item.price)}
+                  </span>
+                )}
+                {item.sizeTag && (
+                  <span className="text-xs font-black uppercase bg-yellow-400 text-black px-2.5 py-0.5 rounded-full font-mono shadow-sm">
+                    {item.sizeTag}
                   </span>
                 )}
               </div>

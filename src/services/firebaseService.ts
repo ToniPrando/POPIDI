@@ -5,6 +5,7 @@ import {
   getDoc, 
   getDocs,
   updateDoc, 
+  deleteDoc,
   onSnapshot, 
   query, 
   where, 
@@ -13,7 +14,7 @@ import {
   Unsubscribe
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Order, OrderStatus, StoreSettings, UserProfile } from '../types';
+import { Order, OrderStatus, StoreSettings, UserProfile, MenuItem } from '../types';
 
 /**
  * Sanitizes an object by recursively removing all `undefined` fields.
@@ -461,6 +462,111 @@ export async function saveStoreSettingsToFirestore(settings: Partial<StoreSettin
     updatedAt: new Date().toISOString(),
   });
   await setDoc(docRef, payload, { merge: true });
+}
+
+/**
+ * Saves an individual MenuItem to Firestore (inserts or updates).
+ * Syncs instantly to all connected clients.
+ */
+export async function saveMenuItemToFirestore(item: MenuItem): Promise<void> {
+  const itemRef = doc(db, 'menu_items', item.id);
+  const payload = sanitizeForFirestore({
+    ...item,
+    updatedAt: new Date().toISOString(),
+  });
+  await setDoc(itemRef, payload, { merge: true });
+
+  // Also persist in the backup catalog document to ensure fast single-query loads
+  try {
+    const catalogRef = doc(db, 'store_settings', 'menu_catalog');
+    const catalogSnap = await getDoc(catalogRef);
+    let items: MenuItem[] = [];
+    if (catalogSnap.exists()) {
+      const data = catalogSnap.data();
+      if (Array.isArray(data?.items)) {
+        items = data.items;
+      }
+    }
+    const idx = items.findIndex(i => i.id === item.id);
+    if (idx >= 0) {
+      items[idx] = item;
+    } else {
+      items.push(item);
+    }
+    await setDoc(catalogRef, { items: sanitizeForFirestore(items), updatedAt: new Date().toISOString() }, { merge: true });
+  } catch (e) {
+    console.warn('Backup catalog update warning:', e);
+  }
+}
+
+/**
+ * Deletes a MenuItem from Firestore.
+ */
+export async function deleteMenuItemFromFirestore(itemId: string): Promise<void> {
+  const itemRef = doc(db, 'menu_items', itemId);
+  await deleteDoc(itemRef);
+
+  // Also remove from backup catalog
+  try {
+    const catalogRef = doc(db, 'store_settings', 'menu_catalog');
+    const catalogSnap = await getDoc(catalogRef);
+    if (catalogSnap.exists()) {
+      const data = catalogSnap.data();
+      if (Array.isArray(data?.items)) {
+        const filtered = data.items.filter((i: any) => i.id !== itemId);
+        await setDoc(catalogRef, { items: sanitizeForFirestore(filtered), updatedAt: new Date().toISOString() }, { merge: true });
+      }
+    }
+  } catch (e) {
+    console.warn('Backup catalog deletion warning:', e);
+  }
+}
+
+/**
+ * Saves or restores the entire catalog of MenuItems to Firestore.
+ */
+export async function saveAllMenuItemsToFirestore(items: MenuItem[]): Promise<void> {
+  // 1. Save all in the centralized catalog document for immediate batch sync
+  const catalogRef = doc(db, 'store_settings', 'menu_catalog');
+  await setDoc(catalogRef, {
+    items: sanitizeForFirestore(items),
+    updatedAt: new Date().toISOString(),
+  });
+
+  // 2. Also update individual docs in menu_items collection
+  for (const item of items) {
+    try {
+      const itemRef = doc(db, 'menu_items', item.id);
+      await setDoc(itemRef, sanitizeForFirestore(item), { merge: true });
+    } catch (e) {
+      // Continue batch
+    }
+  }
+}
+
+/**
+ * Real-time listener for all MenuItems in Firestore.
+ * Listens to the menu_catalog document or menu_items collection for instant real-time synchronization across all devices.
+ */
+export function subscribeToMenuItems(onUpdate: (items: MenuItem[]) => void, onError?: (err: Error) => void): Unsubscribe {
+  // Listen to centralized catalog first for instant atomicity
+  const catalogRef = doc(db, 'store_settings', 'menu_catalog');
+  
+  return onSnapshot(
+    catalogRef,
+    (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (Array.isArray(data?.items) && data.items.length > 0) {
+          onUpdate(data.items as MenuItem[]);
+        }
+      }
+    },
+    (error) => {
+      console.warn('Firestore subscribeToMenuItems offline/network notice:', error);
+      if (onError) onError(error);
+    }
+  );
 }
 
 

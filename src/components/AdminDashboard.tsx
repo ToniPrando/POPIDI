@@ -168,6 +168,7 @@ export const AdminDashboard: React.FC = () => {
     updateStoreSettings,
     menuItems,
     toggleItemAvailability,
+    setIsMenuEditorOpen,
   } = useCart();
 
   const { isAdmin, adminLogout, setIsAdminLoginOpen } = useAuth();
@@ -633,6 +634,17 @@ export const AdminDashboard: React.FC = () => {
             >
               {soundEnabled ? <Volume2 className="w-4 h-4 text-amber-400" /> : <VolumeX className="w-4 h-4" />}
               <span className="hidden md:inline">{soundEnabled ? 'Som Ativo' : 'Mudo'}</span>
+            </button>
+
+            {/* Editar Cardápio e Informações (Requested Button) */}
+            <button
+              type="button"
+              onClick={() => setIsMenuEditorOpen(true)}
+              className="p-2.5 rounded-xl border border-yellow-500/60 bg-gradient-to-r from-yellow-500/25 via-amber-500/20 to-yellow-500/25 hover:from-yellow-400 hover:to-amber-400 hover:text-black text-yellow-300 text-xs font-black flex items-center gap-2 transition-all shadow-md shadow-yellow-500/10 cursor-pointer active:scale-95"
+              title="Cadastrar Novos Pastéis, Alterar Preços, Fotos e Informações das Seções da Página"
+            >
+              <Sliders className="w-4 h-4 text-yellow-400 stroke-[2.5]" />
+              <span className="inline">Editar Cardápio e Informações</span>
             </button>
 
             {/* Maximize / Restore Toggle */}

@@ -25,6 +25,10 @@ import {
   subscribeToStoreSettings,
   saveStoreSettingsToFirestore,
   creditUserLoyaltyPoints,
+  saveMenuItemToFirestore,
+  deleteMenuItemFromFirestore,
+  saveAllMenuItemsToFirestore,
+  subscribeToMenuItems,
 } from '../services/firebaseService';
 
 interface CartContextType {
@@ -72,6 +76,9 @@ interface CartContextType {
   updateStoreSettings: (newSettings: Partial<StoreSettings>) => Promise<void>;
   menuItems: MenuItem[];
   toggleItemAvailability: (itemId: string) => void;
+  saveMenuItem: (item: MenuItem) => Promise<void>;
+  deleteMenuItem: (itemId: string) => Promise<void>;
+  resetMenuToDefaults: () => Promise<void>;
 
   // Category & Navigation
   activeCategory: CategoryId;
@@ -89,6 +96,10 @@ interface CartContextType {
   setIsLoyaltyOpen: (open: boolean) => void;
   isAdminOpen: boolean;
   setIsAdminOpen: (open: boolean) => void;
+  isMenuEditorOpen: boolean;
+  setIsMenuEditorOpen: (open: boolean) => void;
+  editingItem: MenuItem | null;
+  setEditingItem: (item: MenuItem | null) => void;
   selectedProductForModal: MenuItem | null;
   setSelectedProductForModal: (item: MenuItem | null) => void;
   isStoreClosedModalOpen: boolean;
@@ -240,6 +251,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isOrderTrackerOpen, setIsOrderTrackerOpen] = useState(false);
   const [isLoyaltyOpen, setIsLoyaltyOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isMenuEditorOpen, setIsMenuEditorOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [selectedProductForModal, setSelectedProductForModal] = useState<MenuItem | null>(null);
   const [isStoreClosedModalOpen, setIsStoreClosedModalOpen] = useState(false);
 
@@ -372,6 +385,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsub = subscribeToStoreSettings((remoteSettings) => {
       if (remoteSettings) {
         setStoreSettings(prev => ({ ...prev, ...remoteSettings }));
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
+  // Firestore Real-time listener for menu catalog
+  useEffect(() => {
+    const unsub = subscribeToMenuItems((remoteItems) => {
+      if (Array.isArray(remoteItems) && remoteItems.length > 0) {
+        setMenuItems(remoteItems);
       }
     });
 
@@ -746,10 +770,53 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const toggleItemAvailability = (itemId: string) => {
-    setMenuItems(prev =>
-      prev.map(item => (item.id === itemId ? { ...item, available: !item.available } : item))
-    );
+  const toggleItemAvailability = async (itemId: string) => {
+    const updated = menuItems.map(item => (item.id === itemId ? { ...item, available: !item.available } : item));
+    setMenuItems(updated);
+    const changedItem = updated.find(i => i.id === itemId);
+    if (changedItem) {
+      try {
+        await saveMenuItemToFirestore(changedItem);
+      } catch (e) {
+        console.warn('Error saving item availability to Firestore:', e);
+      }
+    }
+  };
+
+  const saveMenuItem = async (item: MenuItem) => {
+    setMenuItems(prev => {
+      const idx = prev.findIndex(i => i.id === item.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = item;
+        return next;
+      }
+      return [item, ...prev];
+    });
+
+    try {
+      await saveMenuItemToFirestore(item);
+    } catch (err) {
+      console.warn('Error saving menu item to Firestore:', err);
+    }
+  };
+
+  const deleteMenuItem = async (itemId: string) => {
+    setMenuItems(prev => prev.filter(i => i.id !== itemId));
+    try {
+      await deleteMenuItemFromFirestore(itemId);
+    } catch (err) {
+      console.warn('Error deleting menu item from Firestore:', err);
+    }
+  };
+
+  const resetMenuToDefaults = async () => {
+    setMenuItems(initialMenuItems);
+    try {
+      await saveAllMenuItemsToFirestore(initialMenuItems);
+    } catch (err) {
+      console.warn('Error resetting menu items to Firestore defaults:', err);
+    }
   };
 
   return (
@@ -791,6 +858,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateStoreSettings,
         menuItems,
         toggleItemAvailability,
+        saveMenuItem,
+        deleteMenuItem,
+        resetMenuToDefaults,
         activeCategory,
         setActiveCategory,
         navigateToCategory,
@@ -804,6 +874,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoyaltyOpen,
         isAdminOpen,
         setIsAdminOpen,
+        isMenuEditorOpen,
+        setIsMenuEditorOpen,
+        editingItem,
+        setEditingItem,
         selectedProductForModal,
         setSelectedProductForModal,
         isStoreClosedModalOpen,
