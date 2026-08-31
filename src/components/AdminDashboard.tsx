@@ -163,6 +163,7 @@ export const AdminDashboard: React.FC = () => {
     isAdminOpen,
     setIsAdminOpen,
     orders,
+    refreshOrders,
     updateOrderStatus,
     storeSettings,
     updateStoreSettings,
@@ -175,6 +176,7 @@ export const AdminDashboard: React.FC = () => {
 
   // Maximized by default for high productivity
   const [isMaximized, setIsMaximized] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'orders' | 'history' | 'menu' | 'settings'>('orders');
   const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
   const [orderFilter, setOrderFilter] = useState<'all' | 'received' | 'preparing' | 'out_for_delivery'>('all');
@@ -216,6 +218,12 @@ export const AdminDashboard: React.FC = () => {
     }
     previousOrdersCountRef.current = orders.length;
   }, [orders, soundEnabled]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshOrders();
+    setTimeout(() => setIsRefreshing(false), 600);
+  };
 
   if (!isAdminOpen) return null;
 
@@ -606,10 +614,15 @@ export const AdminDashboard: React.FC = () => {
                 <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-tight">
                   Painel de Pedidos & Cozinha (KDS Maximizado)
                 </h2>
-                <span className="flex items-center gap-1 text-[10px] font-black uppercase bg-emerald-950 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded-full shadow-sm">
-                  <Database className="w-3 h-3" />
-                  Sincronização em Tempo Real (Firestore)
-                </span>
+                <button
+                  type="button"
+                  onClick={handleManualRefresh}
+                  className="flex items-center gap-1.5 text-[10px] font-black uppercase bg-emerald-950 text-emerald-400 hover:bg-emerald-900/60 border border-emerald-500/40 px-2.5 py-1 rounded-full shadow-sm cursor-pointer transition-all active:scale-95"
+                  title="Sincronização em Tempo Real via Firestore (Clique para atualizar agora)"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin text-yellow-400' : 'text-emerald-400'}`} />
+                  <span>{isRefreshing ? 'Atualizando Nuvem...' : 'Sincronização em Tempo Real (Firestore)'}</span>
+                </button>
               </div>
               <p className="text-xs text-zinc-400 hidden sm:block">
                 Monitor de Chapa • Expedição de Delivery • Gestão de Estoque • Impressão de Comandas

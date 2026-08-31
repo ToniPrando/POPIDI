@@ -20,6 +20,7 @@ import {
   saveOrderToFirestore,
   subscribeToOrders,
   subscribeToOrder,
+  getOrdersFromFirestore,
   updateOrderStatusInFirestore,
   findOrderInFirestore,
   subscribeToStoreSettings,
@@ -64,6 +65,7 @@ interface CartContextType {
   
   // Orders & Tracking
   orders: Order[];
+  refreshOrders: () => Promise<void>;
   activeOrder: Order | null;
   setActiveOrder: (order: Order | null) => void;
   searchAndTrackOrder: (searchTerm: string) => Promise<{ success: boolean; message: string; order?: Order }>;
@@ -308,6 +310,25 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error(e);
     }
   }, [menuItems]);
+
+  // Refresh orders on demand directly from Firestore
+  const refreshOrders = async () => {
+    try {
+      const freshOrders = await getOrdersFromFirestore();
+      if (Array.isArray(freshOrders)) {
+        setOrders(freshOrders);
+      }
+    } catch (e) {
+      console.warn('Could not refresh orders directly:', e);
+    }
+  };
+
+  // When Admin panel opens, immediately fetch freshest orders to ensure 100% sync across devices
+  useEffect(() => {
+    if (isAdminOpen) {
+      refreshOrders();
+    }
+  }, [isAdminOpen]);
 
   // Firestore Real-Time Listener for Orders across all devices
   useEffect(() => {
@@ -699,6 +720,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
     const timestamp = new Date().toISOString();
     const note = getStatusDescription(status);
+    const targetOrder = orders.find(ord => ord.id === orderId);
 
     // Update locally first for instant snappy response
     setOrders(prev =>
@@ -726,9 +748,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
     );
 
-    // Sync status change to Firestore
+    // Sync status change to Firestore in cloud
     try {
-      await updateOrderStatusInFirestore(orderId, status, note);
+      await updateOrderStatusInFirestore(orderId, status, note, targetOrder);
     } catch (e) {
       console.warn('Error syncing order status update to Firestore:', e);
     }
@@ -848,6 +870,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         generalNotes,
         setGeneralNotes,
         orders,
+        refreshOrders,
         activeOrder,
         setActiveOrder,
         searchAndTrackOrder,

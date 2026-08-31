@@ -175,6 +175,29 @@ export function subscribeToOrders(onUpdate: (orders: Order[]) => void, onError?:
 }
 
 /**
+ * Directly fetches all orders from Firestore (used on dashboard opening / manual refresh).
+ */
+export async function getOrdersFromFirestore(): Promise<Order[]> {
+  try {
+    const ordersCol = collection(db, 'orders');
+    const snapshot = await getDocs(ordersCol);
+    const list: Order[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push(normalizeFirestoreOrder(docSnap.data(), docSnap.id));
+    });
+    list.sort((a, b) => {
+      const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tB - tA;
+    });
+    return list;
+  } catch (err) {
+    console.warn('Error fetching orders from Firestore:', err);
+    return [];
+  }
+}
+
+/**
  * Real-time listener for a single order (used by client tracking screen).
  */
 export function subscribeToOrder(
@@ -202,15 +225,16 @@ export function subscribeToOrder(
 
 /**
  * Updates order status in Firestore and appends status history.
- * Both Admin and Client will reflect the update instantly.
+ * Both Admin and Client will reflect the update instantly across all connected devices.
  */
 export async function updateOrderStatusInFirestore(
   orderId: string, 
   newStatus: OrderStatus, 
-  note?: string
+  note?: string,
+  fallbackOrder?: Order
 ): Promise<void> {
   const orderRef = doc(db, 'orders', orderId);
-  const snap = await getDoc(orderRef);
+  const snap = await getDoc(orderRef).catch(() => null);
 
   const timestamp = new Date().toISOString();
   const defaultNote = note || (
@@ -222,10 +246,15 @@ export async function updateOrderStatusInFirestore(
   );
 
   let newHistory: any[] = [];
+  let userId: string | undefined = undefined;
 
-  if (snap.exists()) {
+  if (snap && snap.exists()) {
     const currentData = snap.data() as Order;
+    userId = currentData.userId || (currentData as any).userUid;
     newHistory = Array.isArray(currentData.statusHistory) ? [...currentData.statusHistory] : [];
+  } else if (fallbackOrder) {
+    userId = fallbackOrder.userId || (fallbackOrder as any).userUid;
+    newHistory = Array.isArray(fallbackOrder.statusHistory) ? [...fallbackOrder.statusHistory] : [];
   }
 
   newHistory.push({
@@ -234,14 +263,37 @@ export async function updateOrderStatusInFirestore(
     note: defaultNote,
   });
 
-  const payload = sanitizeForFirestore({
+  let payload: any = {
     status: newStatus,
     statusHistory: newHistory,
     updatedAt: timestamp,
     serverUpdatedAt: serverTimestamp(),
-  });
+  };
 
-  await updateDoc(orderRef, payload);
+  if (!snap || !snap.exists()) {
+    if (fallbackOrder) {
+      payload = {
+        ...fallbackOrder,
+        status: newStatus,
+        statusHistory: newHistory,
+        updatedAt: timestamp,
+        serverUpdatedAt: serverTimestamp(),
+      };
+    }
+  }
+
+  // Use setDoc with merge: true to guarantee update never fails due to document missing
+  await setDoc(orderRef, sanitizeForFirestore(payload), { merge: true });
+
+  // Mirror status update in user subcollection if order is linked to a user account
+  if (userId) {
+    try {
+      const userOrderRef = doc(db, 'users', userId, 'orders', orderId);
+      await setDoc(userOrderRef, sanitizeForFirestore(payload), { merge: true });
+    } catch (e) {
+      console.warn('Could not mirror order status in user subcollection:', e);
+    }
+  }
 }
 
 /**
